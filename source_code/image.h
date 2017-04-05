@@ -5,7 +5,15 @@
 #include <string>
 #include <iostream>
 #include <limits>
-#include "vertex.h"
+
+class Color {
+public:
+  Color(int r_=255, int g_=255, int b_=255) : r(r_),g(g_),b(b_) {}
+  bool isWhite() const { return r==255 && g==255 && b==255; }
+  bool isBlack() const { return r==0 && g==0 && b==0; }
+  int r,g,b;
+};
+
 
 // ====================================================================
 // IMAGE CLASS
