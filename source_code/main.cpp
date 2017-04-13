@@ -8,6 +8,8 @@
 void calcYUV(const Color &c, float &y, float &u, float &v);
 bool compareYUV(const Color &current, const Color &connected);
 void findNode(const std::vector<Node> &graph, Node &n, int x, int Y);
+
+void removeDiagonals(std::vector<Node> &graph);
 void islandsHeuristic(std::vector<Node> &graph);
 
 int main(int argc, char* argv[]) {
@@ -27,7 +29,7 @@ int main(int argc, char* argv[]) {
 
 	std::vector<Node> graph;
 
-	// fill the graph with nodes and the edges between them
+	// create the similarity graph with nodes and the edges between them
 	for(int i = 0; i < image.Width(); i++) {
 		for(int j = 0; j < image.Height(); j++) {
 			// in 4 directions connect edges
@@ -77,36 +79,15 @@ int main(int argc, char* argv[]) {
 				itr++;
 			}
 			else {
+				// remove edges between pixels of dissimilar colors
 				graph[i].removeEdge(itr);
 				itr = edges.erase(itr);
 			}
 		}
 	}
 
-	// remove diagonals between 2x2 square of pixels that is fully connected
-	for(unsigned int i = 0; i < graph.size(); i++) {
-		Node current = graph[i];
-
-		// get the nodes current is connected to
-		Node above, right;
-		findNode(graph, above, current.getXCoor(), current.getYCoor() - 1);
-		findNode(graph, right, current.getXCoor() + 1, current.getYCoor());
-
-		// check if fully connected by edges
-		bool connected = current.hasEdge(current.getXCoor(), current.getYCoor() - 1);
-		connected = current.hasEdge(current.getXCoor() + 1, current.getYCoor() - 1);
-		connected = current.hasEdge(current.getXCoor() + 1, current.getYCoor());
-		connected = above.hasEdge(above.getXCoor() + 1, above.getYCoor());
-		connected = above.hasEdge(above.getXCoor() + 1, above.getYCoor() + 1);
-		connected = right.hasEdge(right.getXCoor(), right.getYCoor() - 1);
-
-		// if fully connected remove diagonals
-		if(connected) {
-			current.removeEdge(current.getEdge(current.getXCoor() + 1, current.getYCoor() - 1));
-			above.removeEdge(above.getEdge(above.getXCoor() + 1, above.getYCoor() + 1));
-		}
-
-	}
+	// remove diagonals from 2x2
+	removeDiagonals(graph);
 
 	islandsHeuristic(graph);
 
@@ -138,7 +119,7 @@ void calcYUV(const Color &c, float &y, float &u, float &v) {
  }
 
 // returns true if the colors are similar, false if dissimilar
-bool compareYUV(Color current, Color connected) {
+bool compareYUV(const Color &current, const Color &connected) {
 
 	float currY, currU, currV;
 	float connY, connU, connV;
@@ -157,6 +138,57 @@ bool compareYUV(Color current, Color connected) {
 
 
 	return true;
+}
+
+// remove diagonals between 2x2 square of pixels that is fully connected
+void removeDiagonals(std::vector<Node> &graph) {
+
+	// // search through graph for edges connecting pixels with dissimilar colors
+	// for(unsigned int i = 0; i < graph.size(); i++) {
+	// 	Color current = image.GetPixel(graph[i].getXCoor(), graph[i].getYCoor());
+
+	// 	// iterate through all edges of the node
+	// 	std::vector<Edge> edges = graph[i].getEdges();
+	// 	for(std::vector<Edge>::iterator itr = edges.begin(); itr != edges.end(); ) {
+
+	// 		std::pair<int, int> otherPixel = itr->getEnd();
+	// 		Color otherColor = image.GetPixel(otherPixel.first, otherPixel.second);
+
+	// 		// compare color of pixel and the pixel connected by the edge
+	// 		if(compareYUV(current, otherColor)) {
+	// 			itr++;
+	// 		}
+	// 		else {
+	// 			graph[i].removeEdge(itr);
+	// 			itr = edges.erase(itr);
+	// 		}
+	// 	}
+	// }
+
+	// remove diagonals between 2x2 square of pixels that is fully connected
+	for(unsigned int i = 0; i < graph.size(); i++) {
+		Node current = graph[i];
+
+		// get the nodes current is connected to
+		Node above, right;
+		findNode(graph, above, current.getXCoor(), current.getYCoor() - 1);
+		findNode(graph, right, current.getXCoor() + 1, current.getYCoor());
+
+		// check if fully connected by edges
+		bool connected = current.hasEdge(current.getXCoor(), current.getYCoor() - 1);
+		connected = current.hasEdge(current.getXCoor() + 1, current.getYCoor() - 1);
+		connected = current.hasEdge(current.getXCoor() + 1, current.getYCoor());
+		connected = above.hasEdge(above.getXCoor() + 1, above.getYCoor());
+		connected = above.hasEdge(above.getXCoor() + 1, above.getYCoor() + 1);
+		connected = right.hasEdge(right.getXCoor(), right.getYCoor() - 1);
+
+		// if fully connected remove diagonals
+		if(connected) {
+			current.removeEdge(current.getEdge(current.getXCoor() + 1, current.getYCoor() - 1));
+			above.removeEdge(above.getEdge(above.getXCoor() + 1, above.getYCoor() + 1));
+		}
+
+	}
 }
 
 // weigh edges connecting islands
