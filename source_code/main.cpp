@@ -5,13 +5,24 @@
 #include "node.h"
 #include "image.h"
 
+typedef std::vector<std::vector<Node> > Graph;
+
+// ===========================================================================================
+
+void createGraph(Graph& similarity_graph, const Image &image);
+
+// functions for disconnecting nodes of dissimilar colors
+void disconnectDissimilar(Graph& similarity_graph, const Image &image);
 void calcYUV(const Color &c, float &y, float &u, float &v);
 bool compareYUV(const Color &current, const Color &connected);
-void findNode(const std::vector<Node> &graph, Node &n, int x, int Y);
 
-void removeDiagonals(std::vector<Node> &graph);
-void islandsHeuristic(std::vector<Node> &graph);
+// functions for removing diagonals in 2x2 squares of pixels
+void removeDiagonals(Graph &similarity_graph);
 
+// function for weighing diagonal edges between islands
+void islandsHeuristic(Graph &graph);
+
+// ===========================================================================================
 int main(int argc, char* argv[]) {
 
 	// command line args: input, output file names
@@ -24,83 +35,92 @@ int main(int argc, char* argv[]) {
 	std::string inputFile = argv[1];
 	std::string outputFile = argv[2];
 
+	// load the image
 	Image image;
 	image.Load(inputFile);
 
-	std::vector<Node> graph;
+	// create the graph
+	Graph similarity_graph;
+	createGraph(similarity_graph, image);
 
-	// create the similarity graph with nodes and the edges between them
-	for(int i = 0; i < image.Width(); i++) {
-		for(int j = 0; j < image.Height(); j++) {
-			// in 4 directions connect edges
-			Node n(i, j);
-
-			// north
-			if(j-1 >= 0) {
-				Edge e(i, j, i, j-1, 0);
-				n.addEdge(e);
-			}
-
-			// north east
-			if(i+1 < image.Width() && j-1 >= 0) {
-				Edge e(i, j, i+1, j-1, 0);
-				n.addEdge(e);
-			}
-
-			// east
-			if(i+1 < image.Width()) {
-				Edge e(i, j, i+1, j, 0);
-				n.addEdge(e);
-			}
-
-			// south east
-			if(i+1 < image.Width() && j+1 < image.Height()) {
-				Edge e(i, j, i+1, j+1, 0);
-				n.addEdge(e);
-			}
-
-			graph.push_back(n);
-		}
-	}
-
-	// search through graph for edges connecting pixels with dissimilar colors
-	for(unsigned int i = 0; i < graph.size(); i++) {
-		Color current = image.GetPixel(graph[i].getXCoor(), graph[i].getYCoor());
-
-		// iterate through all edges of the node
-		std::vector<Edge> edges = graph[i].getEdges();
-		for(std::vector<Edge>::iterator itr = edges.begin(); itr != edges.end(); ) {
-
-			std::pair<int, int> otherPixel = itr->getEnd();
-			Color otherColor = image.GetPixel(otherPixel.first, otherPixel.second);
-
-			// compare color of pixel and the pixel connected by the edge
-			if(compareYUV(current, otherColor)) {
-				itr++;
-			}
-			else {
-				// remove edges between pixels of dissimilar colors
-				graph[i].removeEdge(itr);
-				itr = edges.erase(itr);
-			}
-		}
-	}
-
-	// remove diagonals from 2x2
-	removeDiagonals(graph);
-
-	islandsHeuristic(graph);
+	// start of algorithm
+	disconnectDissimilar(similarity_graph, image);
+	removeDiagonals(similarity_graph);
+	islandsHeuristic(similarity_graph);
 
 
 	return 0;
 }
 
-// find a node with (startX, startY) and (endX, endY)
-void findNode(const std::vector<Node> &graph, Node &n, int x, int y) {
-	for(unsigned int i = 0; i < graph.size(); i++) {
-		if(graph[i].getXCoor() == x && graph[i].getYCoor() == y) {
-			n = graph[i];
-			return;
+// create the similarity graph from the image
+void createGraph(Graph& similarity_graph, const Image &image) {
+
+	// add all the nodes to the graph
+
+	// create all the rows
+	for(int x = 0; x < image.Width(); x++) {
+		// create all the columns
+		std::vector<Node> column;
+		for(int y = 0; y < image.Height(); y++) {
+			column.push_back(Node(x, y));
+		}
+		similarity_graph.push_back(column);
+	}
+
+
+	// add all the edges between the nodes (connect all nodes at first)
+	for(unsigned int x = 0; x < similarity_graph.size(); x++) {
+		for(unsigned int y = 0; y < similarity_graph[x].size(); y++) {
+			// add the North edge
+			if(y-1 >= 0) {
+				Edge e(similarity_graph[x][y], similarity_graph[x][y-1], 0);
+				similarity_graph[x][y].addEdge(e);
+			}
+
+			// add the North-east edge
+			if(x+1 < similarity_graph.size() && y-1 >= 0) {
+				Edge e(similarity_graph[x][y], similarity_graph[x+1][y-1], 0);
+				similarity_graph[x][y].addEdge(e);
+			}
+
+			// add the East edge
+			if(x+1 < similarity_graph.size()) {
+				Edge e(similarity_graph[x][y], similarity_graph[x+1][y], 0);
+				similarity_graph[x][y].addEdge(e);
+			}
+
+			// add the South-east edge
+			if(x+1 < similarity_graph.size() && y+1 < similarity_graph[x].size()) {
+				Edge e(similarity_graph[x][y], similarity_graph[x+1][y+1], 0);
+				similarity_graph[x][y].addEdge(e);
+			}
+		}
+	}
+}
+
+// ===========================================================================================
+
+// disconnect edges of nodes with dissimilar colors
+void disconnectDissimilar(Graph& similarity_graph, const Image &image) {
+	// go through all the nodes
+	for(unsigned int x = 0; x < similarity_graph.size(); x++) {
+		for(unsigned int y = 0; y < similarity_graph[x].size(); y++) {
+			Color current = image.GetPixel(x, y);
+
+			// check North node
+			if(y-1 >= 0) {
+				Color north = image.GetPixel(x, y-1);
+				
+				// if colors aren't similar
+				if(!compareYUV(current, north)) {
+					// get the edge
+					std::vector<Edge>::iterator itr = similarity_graph[x][y].getEdge(x, y-1);
+					if(itr != similarity_graph[x][y].getEdges().end()) {
+						// disconnect the nodes
+						similarity_graph[x][y].removeEdge(itr);
+					}
+				}
+			}
 		}
 	}
 }
@@ -140,92 +160,123 @@ bool compareYUV(const Color &current, const Color &connected) {
 	return true;
 }
 
+// ===========================================================================================
+
 // remove diagonals between 2x2 square of pixels that is fully connected
-void removeDiagonals(std::vector<Node> &graph) {
 
-	// // search through graph for edges connecting pixels with dissimilar colors
-	// for(unsigned int i = 0; i < graph.size(); i++) {
-	// 	Color current = image.GetPixel(graph[i].getXCoor(), graph[i].getYCoor());
+/*  A fully connected 2x2 block will have the following Node structure
+		 N----NE
+		 | \ / |
+		 | / \ |
+	    Node---E
+*/
+void removeDiagonals(Graph &graph) {
 
-	// 	// iterate through all edges of the node
-	// 	std::vector<Edge> edges = graph[i].getEdges();
-	// 	for(std::vector<Edge>::iterator itr = edges.begin(); itr != edges.end(); ) {
+	// remove diagonals from 2x2 squares of pixels that are fully connected
+	for(unsigned int x = 0; x < graph.size(); x++) {
+		for(unsigned int y = 0; y < graph.size(); y++) {
+			Node current = graph[x][y];
+			bool connected = true;
 
-	// 		std::pair<int, int> otherPixel = itr->getEnd();
-	// 		Color otherColor = image.GetPixel(otherPixel.first, otherPixel.second);
+			// if fully connected node will have a North and a East edge
+			connected = current.hasEdge(x, y-1);
+			connected = current.hasEdge(x+1, y);
 
-	// 		// compare color of pixel and the pixel connected by the edge
-	// 		if(compareYUV(current, otherColor)) {
-	// 			itr++;
-	// 		}
-	// 		else {
-	// 			graph[i].removeEdge(itr);
-	// 			itr = edges.erase(itr);
-	// 		}
-	// 	}
-	// }
+			// if fully connected node above will have a East edge
+			if(y-1 >= 0) {
+				connected = graph[x][y-1].hasEdge(x+1, y-1);
+			}
 
-	// remove diagonals between 2x2 square of pixels that is fully connected
-	for(unsigned int i = 0; i < graph.size(); i++) {
-		Node current = graph[i];
+			// if fully connected node to the right will have a North edge
+			if(x+1 < graph.size()) {
+				connected = graph[x+1][y].hasEdge(x+1, y-1);
+			}
 
-		// get the nodes current is connected to
-		Node above, right;
-		findNode(graph, above, current.getXCoor(), current.getYCoor() - 1);
-		findNode(graph, right, current.getXCoor() + 1, current.getYCoor());
+			// if fully connected disconnect the diagonals if they exist
+			if(connected) {
+				// remove diagonal to North-east
+				std::vector<Edge>::iterator itr = current.getEdge(x+1, y-1);
+				if(itr != current.getEdges().end()) {
+					graph[x][y].removeEdge(itr);
+				}
 
-		// check if fully connected by edges
-		bool connected = current.hasEdge(current.getXCoor(), current.getYCoor() - 1);
-		connected = current.hasEdge(current.getXCoor() + 1, current.getYCoor() - 1);
-		connected = current.hasEdge(current.getXCoor() + 1, current.getYCoor());
-		connected = above.hasEdge(above.getXCoor() + 1, above.getYCoor());
-		connected = above.hasEdge(above.getXCoor() + 1, above.getYCoor() + 1);
-		connected = right.hasEdge(right.getXCoor(), right.getYCoor() - 1);
-
-		// if fully connected remove diagonals
-		if(connected) {
-			current.removeEdge(current.getEdge(current.getXCoor() + 1, current.getYCoor() - 1));
-			above.removeEdge(above.getEdge(above.getXCoor() + 1, above.getYCoor() + 1));
+				// remove above node's diagonal to the right node (N to E)
+				if(y-1 >= 0) {
+					itr = graph[x][y-1].getEdge(x+1, y);
+					if(itr != graph[x][y-1].getEdges().end()) {
+						graph[x][y-1].removeEdge(itr);
+					}
+				}
+			}
 		}
-
 	}
 }
 
+// ===========================================================================================
+
 // weigh edges connecting islands
-void islandsHeuristic(std::vector<Node> &graph) {
-	for(unsigned int i = 0; i < graph.size(); i++) {
-		Node current = graph[i];
+void islandsHeuristic(Graph &graph) {
+	// for(unsigned int i = 0; i < graph.size(); i++) {
+	// 	Node current = graph[i];
 
-		// get the nodes current is connected to
-		Node above, right;
-		findNode(graph, above, current.getXCoor(), current.getYCoor() - 1);
-		findNode(graph, right, current.getXCoor() + 1, current.getYCoor());
+	// 	// get the nodes current is connected to
+	// 	Node above, right;
+	// 	findNode(graph, above, current.getXCoor(), current.getYCoor() - 1);
+	// 	findNode(graph, right, current.getXCoor() + 1, current.getYCoor());
 
-		// check if box has border edges
-		bool connectedLeftEdge= current.hasEdge(current.getXCoor(), current.getYCoor() - 1);
-		bool connectedBottomEdge = current.hasEdge(current.getXCoor() + 1, current.getYCoor());
-		bool connectedTopEdge = above.hasEdge(above.getXCoor() + 1, above.getYCoor());
-		bool connectedRightEdge = right.hasEdge(right.getXCoor(), right.getYCoor() - 1);
+	// 	// check if box has border edges
+	// 	bool connectedLeftEdge= current.hasEdge(current.getXCoor(), current.getYCoor() - 1);
+	// 	bool connectedBottomEdge = current.hasEdge(current.getXCoor() + 1, current.getYCoor());
+	// 	bool connectedTopEdge = above.hasEdge(above.getXCoor() + 1, above.getYCoor());
+	// 	bool connectedRightEdge = right.hasEdge(right.getXCoor(), right.getYCoor() - 1);
 
-		// if box has border edges, then has more than just diagonal edges
-		if(connectedRightEdge || connectedTopEdge || connectedLeftEdge || connectedBottomEdge) {
-			continue;
+	// 	// if box has border edges, then has more than just diagonal edges
+	// 	if(connectedRightEdge || connectedTopEdge || connectedLeftEdge || connectedBottomEdge) {
+	// 		continue;
+	// 	}
+
+	// 	// if diagonals are the only edges of the box:
+
+	// 	// weigh north east diagonal if exists
+	// 	bool connectedDiagonalNE = current.hasEdge(current.getXCoor() + 1, current.getYCoor() - 1);
+	// 	if(connectedDiagonalNE) {
+	// 		current.setEdgeWeight(current.getXCoor() + 1, current.getYCoor() - 1, 5);
+	// 	}
+
+
+	// 	// weigh south east diagonal if exists
+	// 	bool connectedDiagonalSE = current.hasEdge(current.getXCoor() + 1, current.getYCoor() + 1);
+	// 	if(connectedDiagonalSE) {
+	// 		current.setEdgeWeight(current.getXCoor() + 1, current.getYCoor() + 1, 5);
+	// 	}
+
+	// }
+
+	for(unsigned int x = 0; x < graph.size(); x++) {
+		for(unsigned int y = 0; y < graph[x].size(); y++) {
+			Node current = graph[x][y];
+			bool connected = true;
+
+			// if fully connected node will have a North and a East edge
+			connected = current.hasEdge(x, y-1);
+			connected = current.hasEdge(x+1, y);
+
+			// if fully connected node above will have a East edge
+			if(y-1 >= 0) {
+				connected = graph[x][y-1].hasEdge(x+1, y-1);
+			}
+
+			// if fully connected node to the right will have a North edge
+			if(x+1 < graph.size()) {
+				connected = graph[x+1][y].hasEdge(x+1, y-1);
+			}
+
+			// if there are border edges then there are more than just diagonals
+			if(connected) continue;
+
+			// if diagonals are the only edges of the box & the diagonal is the only
+			// edge of the endpoint then it's an island edge
+
 		}
-
-		// if diagonals are the only edges of the box:
-
-		// weigh north east diagonal if exists
-		bool connectedDiagonalNE = current.hasEdge(current.getXCoor() + 1, current.getYCoor() - 1);
-		if(connectedDiagonalNE) {
-			current.setEdgeWeight(current.getXCoor() + 1, current.getYCoor() - 1, 5);
-		}
-
-
-		// weigh south east diagonal if exists
-		bool connectedDiagonalSE = current.hasEdge(current.getXCoor() + 1, current.getYCoor() + 1);
-		if(connectedDiagonalSE) {
-			current.setEdgeWeight(current.getXCoor() + 1, current.getYCoor() + 1, 5);
-		}
-
 	}
 }

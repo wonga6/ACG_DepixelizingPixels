@@ -1,8 +1,9 @@
-#include "edge.h"
+#include "node.h"
 
-Edge::Edge(int sX, int sY, int eX, int eY, float w) {
-	startPoint = std::make_pair(sX, sY);
-	endPoint = std::make_pair(eX, eY);
+Edge::Edge(const Node &start, const Node &end, float w) {
+	startPoint = start;
+	endPoint = end;
+	weight = w;
 }
 
 const Edge& Edge::operator=(const Edge& e) {
