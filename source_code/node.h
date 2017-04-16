@@ -73,7 +73,7 @@ class Edge {
 		// MODIFIER FUNCTIONS
 		void setStart(const Node &n) { startPoint = n; }
 		void setEnd(const Node &n) { endPoint = n; }
-		void setWeight(float w) { weight = w; }
+		void addWeight(float w) { weight += w; }
 
 		// ACCESSOR FUNCTIONS
 		Node getStart() const { return startPoint; }

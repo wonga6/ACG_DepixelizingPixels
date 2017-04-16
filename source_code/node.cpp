@@ -12,7 +12,7 @@ const Node& Node::operator=(const Node& n) {
 void Node::setEdgeWeight(int endX, int endY, float weight) {
 	for(unsigned int i = 0; i < edges.size(); i++) {
 		if(edges[i].getEnd().getXCoor() == endX && edges[i].getEnd().getYCoor() == endY) {
-			edges[i].setWeight(weight);
+			edges[i].addWeight(weight);
 			break;
 		}
 	}

@@ -20,7 +20,9 @@ bool compareYUV(const Color &current, const Color &connected);
 void removeDiagonals(Graph &similarity_graph);
 
 // function for weighing diagonal edges between islands
-void islandsHeuristic(Graph &graph);
+void islandsHeuristic(Graph &graph, int x, int y);
+
+void sparsePixelHeuristic(Graph &graph, const Image &image, int x, int y);
 
 // ===========================================================================================
 int main(int argc, char* argv[]) {
@@ -46,7 +48,12 @@ int main(int argc, char* argv[]) {
 	// start of algorithm
 	disconnectDissimilar(similarity_graph, image);
 	removeDiagonals(similarity_graph);
-	islandsHeuristic(similarity_graph);
+
+	for(unsigned int x = 0; x < similarity_graph.size(); x++) {
+		for(unsigned int y = 0; y < similarity_graph[x].size(); y++) {
+			islandsHeuristic(similarity_graph, x, y);
+		}
+	}
 
 
 	return 0;
@@ -215,68 +222,69 @@ void removeDiagonals(Graph &graph) {
 // ===========================================================================================
 
 // weigh edges connecting islands
-void islandsHeuristic(Graph &graph) {
-	// for(unsigned int i = 0; i < graph.size(); i++) {
-	// 	Node current = graph[i];
-
-	// 	// get the nodes current is connected to
-	// 	Node above, right;
-	// 	findNode(graph, above, current.getXCoor(), current.getYCoor() - 1);
-	// 	findNode(graph, right, current.getXCoor() + 1, current.getYCoor());
-
-	// 	// check if box has border edges
-	// 	bool connectedLeftEdge= current.hasEdge(current.getXCoor(), current.getYCoor() - 1);
-	// 	bool connectedBottomEdge = current.hasEdge(current.getXCoor() + 1, current.getYCoor());
-	// 	bool connectedTopEdge = above.hasEdge(above.getXCoor() + 1, above.getYCoor());
-	// 	bool connectedRightEdge = right.hasEdge(right.getXCoor(), right.getYCoor() - 1);
-
-	// 	// if box has border edges, then has more than just diagonal edges
-	// 	if(connectedRightEdge || connectedTopEdge || connectedLeftEdge || connectedBottomEdge) {
-	// 		continue;
-	// 	}
-
-	// 	// if diagonals are the only edges of the box:
-
-	// 	// weigh north east diagonal if exists
-	// 	bool connectedDiagonalNE = current.hasEdge(current.getXCoor() + 1, current.getYCoor() - 1);
-	// 	if(connectedDiagonalNE) {
-	// 		current.setEdgeWeight(current.getXCoor() + 1, current.getYCoor() - 1, 5);
-	// 	}
-
-
-	// 	// weigh south east diagonal if exists
-	// 	bool connectedDiagonalSE = current.hasEdge(current.getXCoor() + 1, current.getYCoor() + 1);
-	// 	if(connectedDiagonalSE) {
-	// 		current.setEdgeWeight(current.getXCoor() + 1, current.getYCoor() + 1, 5);
-	// 	}
-
-	// }
-
-	for(unsigned int x = 0; x < graph.size(); x++) {
-		for(unsigned int y = 0; y < graph[x].size(); y++) {
-			Node current = graph[x][y];
-			bool connected = true;
-
-			// if fully connected node will have a North and a East edge
-			connected = current.hasEdge(x, y-1);
-			connected = current.hasEdge(x+1, y);
-
-			// if fully connected node above will have a East edge
-			if(y-1 >= 0) {
-				connected = graph[x][y-1].hasEdge(x+1, y-1);
-			}
-
-			// if fully connected node to the right will have a North edge
-			if(x+1 < graph.size()) {
-				connected = graph[x+1][y].hasEdge(x+1, y-1);
-			}
-
-			// if there are border edges then there are more than just diagonals
-			if(connected) continue;
-
-			// if diagonals are the only edges of the box & the diagonal is the only
-			// edge of the endpoint then it's an island edge
-
+// check the endpoints of the node's diagonals
+// if endpoint has only one edge it's an island
+void islandsHeuristic(Graph &graph, int x, int y) {
+	
+	// check for diagonal going North-east
+	if(x+1 < graph.size() && y-1 >= 0) {
+		Node northEast = graph[x+1][y-1];
+		if(northEast.getEdges().size() == 1) {
+			graph[x][y].setEdgeWeight(x+1, y-1, 5);
 		}
+	}
+
+	// check the diagonal going South-east
+	if(x+1 < graph.size() && y+1 < graph[x].size()) {
+		Node southEast = graph[x+1][y+1];
+		if(southEast.getEdges().size() == 1) {
+			graph[x][y].setEdgeWeight(x+1, y+1, 5);
+		}
+	}
+}
+
+// weight of the edge is the difference in the number of nodes with the same color in the 
+// 8x8 window
+void sparsePixelHeuristic(Graph &graph, const Image &image, int x, int y) {
+
+	// check that there are diagonals forming a cross
+	std::vector<Edge>::const_iterator itr = graph[x][y].getEdges().end();
+	if(x+1 < graph.size() && y-1 >= 0) {
+		itr = graph[x][y].getEdge(x+1, y-1);
+		itr = graph[x][y-1].getEdge(x+1, y);
+	}
+
+	if(itr == graph[x][y].getEdges().end()) return;
+
+	Color current = image.GetPixel(x, y);
+	Color other = image.GetPixel(x, y-1);
+
+	int currentColorCount = 0;
+	int otherColorCount = 0;
+
+	// go through the 8x8 square around the diagonals
+	for(int i = x-4; i < x+4; i++) {
+		for(int j = y-4; j < y+4; j++) {
+			// make sure not to walk off the grid
+			if(i < 0 || j < 0 || i > graph.size() || j > graph[i].size()) continue;
+
+			// compare the colors
+			Color pix = image.GetPixel(i, j);
+
+			if(pix.r == current.r && pix.g == current.g && pix.b == current.b) {
+				currentColorCount++;
+			}
+			else if(pix.r == other.r && pix.g == other.g && pix.b == other.b) {
+				otherColorCount++;
+			}
+		}
+	}
+
+	// weigh the edge with the smaller color count
+	if(currentColorCount < otherColorCount) {
+		graph[x][y].setEdgeWeight(x+1, y-1, otherColorCount - currentColorCount);
+	}
+	else {
+		graph[x][y-1].setEdgeWeight(x+1, y, currentColorCount - otherColorCount);
 	}
 }
