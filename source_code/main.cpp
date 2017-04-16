@@ -57,6 +57,19 @@ int main(int argc, char* argv[]) {
 
 	for(unsigned int x = 0; x < similarity_graph.size(); x++) {
 		for(unsigned int y = 0; y < similarity_graph[x].size(); y++) {
+
+			// check that there are diagonals forming a cross
+			bool cross = false;
+			if(x+1 < similarity_graph.size() && y+1 < similarity_graph[x].size()) {
+				cross = similarity_graph[x][y].hasEdge(x+1, y+1);
+				cross = similarity_graph[x][y+1].hasEdge(x+1, y);
+			}
+
+			if(!cross) continue;
+
+			// if there's a cross perform the heuristics on it
+			curveHeuristic(similarity_graph, x, y);
+			sparsePixelHeuristic(similarity_graph, image, x, y);
 			islandsHeuristic(similarity_graph, x, y);
 		}
 	}
@@ -253,17 +266,8 @@ void islandsHeuristic(Graph &graph, int x, int y) {
 // 8x8 window
 void sparsePixelHeuristic(Graph &graph, const Image &image, int x, int y) {
 
-	// check that there are diagonals forming a cross
-	std::vector<Edge>::const_iterator itr = graph[x][y].getEdges().end();
-	if(x+1 < graph.size() && y-1 >= 0) {
-		itr = graph[x][y].getEdge(x+1, y-1);
-		itr = graph[x][y-1].getEdge(x+1, y);
-	}
-
-	if(itr == graph[x][y].getEdges().end()) return;
-
 	Color current = image.GetPixel(x, y);
-	Color other = image.GetPixel(x, y-1);
+	Color other = image.GetPixel(x, y+1);
 
 	int currentColorCount = 0;
 	int otherColorCount = 0;
@@ -287,10 +291,10 @@ void sparsePixelHeuristic(Graph &graph, const Image &image, int x, int y) {
 	}
 	// weigh the edge with the smaller color count
 	if(currentColorCount < otherColorCount) {
-		graph[x][y].setEdgeWeight(x+1, y-1, otherColorCount - currentColorCount);
+		graph[x][y].setEdgeWeight(x+1, y+1, otherColorCount - currentColorCount);
 	}
 	else {
-		graph[x][y-1].setEdgeWeight(x+1, y, currentColorCount - otherColorCount);
+		graph[x][y+1].setEdgeWeight(x+1, y, currentColorCount - otherColorCount);
 	}
 }
 
