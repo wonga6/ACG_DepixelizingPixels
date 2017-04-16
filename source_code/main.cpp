@@ -280,3 +280,91 @@ void islandsHeuristic(Graph &graph) {
 		}
 	}
 }
+
+int curveHeuristicHelp(Graph &graph,
+		       int startNodex, int startNodey,
+		       int currNodex, int currNodey,
+		       int prevNodex, int prevNodey){
+  if (startNodex == currNodex && startNodey == currNodey)
+    return 0;
+  int connectX = -1;
+  int connectY = -1;
+  int connections = 0;
+  if (currNodex != 0 && currNodey != 0)
+    if ((prevNodex != currNodex-1 || prevNodey != currNodey-1) &&
+	graph[currNodex-1][currNodey-1].hasEdge(currNodex, currNodey)){
+      connectX = currNodex-1;
+      connectY = currNodey-1;
+      connections++;
+    }
+  if (currNodey != 0)
+    if ((prevNodex != currNodex || prevNodey != currNodey-1) &&
+	graph[currNodex][currNodey].hasEdge(currNodex, currNodey-1)){
+      connectX = currNodex;
+      connectY = currNodey-1;
+      connections++;
+    }
+  if (currNodex != 0)
+    if ((prevNodex != currNodex-1 || prevNodey != currNodey) &&
+	graph[currNodex-1][currNodey].hasEdge(currNodex, currNodey)){
+      connectX = currNodex-1;
+      connectY = currNodey;
+      connections++;
+    }
+  if (currNodex != 0 && currNodey != graph[currNodex].size())
+    if ((prevNodex != currNodex-1 || prevNodey != currNodey+1) &&
+	graph[currNodex-1][currNodey+1].hasEdge(currNodex, currNodey)){
+      connectX = currNodex-1;
+      connectY = currNodey+1;
+      connections++;
+    }
+  if (currNodey != graph[currNodex].size())
+    if ((prevNodex != currNodex || prevNodey != currNodey+1) &&
+	graph[currNodex][currNodey+1].hasEdge(currNodex, currNodey)){
+      connectX = currNodex;
+      connectY = currNodey+1;
+      connections++;
+    }
+  if (currNodex != graph.size() && currNodey != 0)
+    if ((prevNodex != currNodex+1 || prevNodey != currNodey-1) &&
+	graph[currNodex][currNodey].hasEdge(currNodex+1, currNodey-1)){
+      connectX = currNodex+1;
+      connectY = currNodey-1;
+      connections++;
+    }
+  if (currNodex != graph.size())
+    if ((prevNodex != currNodex+1 || prevNodey != currNodey) &&
+	graph[currNodex][currNodey].hasEdge(currNodex+1, currNodey)){
+      connectX = currNodex+1;
+      connectY = currNodey;
+      connections++;
+    }
+  if (currNodex != graph.size() && currNodey != graph[currNodex].size())
+    if ((prevNodex != currNodex+1 || prevNodey != currNodey+1) &&
+	graph[currNodex][currNodey].hasEdge(currNodex+1, currNodey+1)){
+      connectX = currNodex+1;
+      connectY = currNodey+1;
+      connections++;
+    }
+  if (connections==1){
+    return 1 + curveHeuristicHelp(graph, startNodex,startNodey,
+				  connectX,connectY,
+				  currNodex,currNodey);
+  }
+  return 0;
+}
+
+void curveHeuristic(Graph &graph, int nodex, int nodey){
+  int diag1 = 0;
+  int diag2 = 0;
+  diag1 += curveHeuristicHelp(graph, nodex+1, nodey+1, nodex, nodey,
+			      nodex+1,nodey+1);
+  diag1 += curveHeuristicHelp(graph, nodex, nodey, nodex+1, nodey+1,
+			      nodex, nodey);
+  diag2 += curveHeuristicHelp(graph, nodex+1, nodey, nodex, nodey+1,
+			      nodex+1, nodey);
+  diag2 += curveHeuristicHelp(graph, nodex, nodey+1, nodex+1, nodey,
+			      nodex, nodey+1);
+  graph[nodex][nodey].setEdgeWeight(nodex+1,nodey+1,diag1);
+  graph[nodex+1][nodey].setEdgeWeight(nodex,nodey+1,diag2);
+} 
