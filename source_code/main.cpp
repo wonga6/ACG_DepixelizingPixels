@@ -2,6 +2,8 @@
 #include <cstdlib>
 #include <fstream>
 #include <vector>
+#include <list>
+
 #include "node.h"
 #include "image.h"
 
@@ -19,7 +21,7 @@ bool compareYUV(const Color &current, const Color &connected);
 // functions for removing diagonals in 2x2 squares of pixels
 void removeDiagonals(Graph &similarity_graph);
 
-// function for weighing diagonal edges between islands
+// functions for weighing diagonals
 void islandsHeuristic(Graph &graph, int x, int y);
 
 int curveHeuristicHelp(Graph &graph,
@@ -29,6 +31,10 @@ int curveHeuristicHelp(Graph &graph,
 void curveHeuristic(Graph &graph, int nodex, int nodey);
 
 void sparsePixelHeuristic(Graph &graph, const Image &image, int x, int y);
+
+void removeDiagonal(Graph& graph);
+
+// functions for creating Voronoi diagram
 
 // ===========================================================================================
 int main(int argc, char* argv[]) {
@@ -55,6 +61,7 @@ int main(int argc, char* argv[]) {
 	disconnectDissimilar(similarity_graph, image);
 	removeDiagonals(similarity_graph);
 
+	// go through the graph and run the 3 hueristics on the cross diagonals
 	for(unsigned int x = 0; x < similarity_graph.size(); x++) {
 		for(unsigned int y = 0; y < similarity_graph[x].size(); y++) {
 
@@ -74,6 +81,10 @@ int main(int argc, char* argv[]) {
 		}
 	}
 
+
+	// create Voronoi diagram
+	std::list<Node> VNodes;
+	std::list<Edge> VEdges;
 
 	return 0;
 }
@@ -385,3 +396,32 @@ void curveHeuristic(Graph &graph, int nodex, int nodey){
   graph[nodex][nodey].setEdgeWeight(nodex+1,nodey+1,diag1);
   graph[nodex+1][nodey].setEdgeWeight(nodex,nodey+1,diag2);
 } 
+
+// remove the diagonal with the smaller weight
+void removeDiagonal(Graph& graph) {
+	// go through the graph and run the 3 hueristics on the cross diagonals
+	for(unsigned int x = 0; x < graph.size(); x++) {
+		for(unsigned int y = 0; y < graph[x].size(); y++) {
+
+			// check that there are diagonals forming a cross
+			bool cross = false;
+			if(x+1 < graph.size() && y+1 < graph[x].size()) {
+				cross = graph[x][y].hasEdge(x+1, y+1);
+				cross = graph[x][y+1].hasEdge(x+1, y);
+			}
+
+			if(!cross) continue;
+
+			// get weights of crosses
+			std::vector<Edge>::iterator seEdgeItr = graph[x][y].getEdge(x+1, y+1);
+			std::vector<Edge>::iterator otherEdgeItr = graph[x][y+1].getEdge(x+1, y);
+
+			if(seEdgeItr->getWeight() > otherEdgeItr->getWeight()) {
+				graph[x][y+1].removeEdge(otherEdgeItr);
+			}
+			else {
+				graph[x][y].removeEdge(seEdgeItr);
+			}
+		}
+	}	
+}
