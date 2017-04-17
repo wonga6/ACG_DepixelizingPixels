@@ -2,6 +2,7 @@
 #define __node_h__
 
 #include <vector>
+#include <iostream>
 
 // ===========================================================================================
 // NODE CLASS
@@ -34,7 +35,8 @@ class Node {
 		void setXCoor(int x) { xCoor = x; }
 		void setYCoor(int y) { yCoor = y; }
 		void addEdge(const Edge& e) { edges.push_back(e); }
-		void removeEdge(std::vector<Edge>::iterator place) { edges.erase(place); }
+		void removeEdge(std::vector<Edge>::iterator &place) { edges.erase(place); }
+		void removeEdge2(int x, int y);
 		void setEdgeWeight(int endX, int endY, float weight);
 
 		// ACCESSOR FUNCTIONS
@@ -65,24 +67,24 @@ class Edge {
 	public:
 		// CONSTRUCTORS
 		Edge() : weight(0) {}
-		Edge(const Node &start, const Node &end, float w);
+		Edge(Node *start, Node *end, float w);
 
 		// OPERATORS
 		const Edge& operator=(const Edge& e);
 
 		// MODIFIER FUNCTIONS
-		void setStart(const Node &n) { startPoint = n; }
-		void setEnd(const Node &n) { endPoint = n; }
+		void setStart(Node *n) { startPoint = n; }
+		void setEnd(Node *n) { endPoint = n; }
 		void addWeight(float w) { weight += w; }
 
 		// ACCESSOR FUNCTIONS
-		Node getStart() const { return startPoint; }
-		Node getEnd() const { return endPoint; }
+		Node* getStart() const { return startPoint; }
+		Node* getEnd() const { return endPoint; }
 		float getWeight() const { return weight; }
 
 	private:
-		Node startPoint;
-		Node endPoint;
+		Node* startPoint;
+		Node* endPoint;
 		float weight;
 };
 

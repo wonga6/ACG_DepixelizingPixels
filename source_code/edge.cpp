@@ -1,6 +1,6 @@
 #include "node.h"
 
-Edge::Edge(const Node &start, const Node &end, float w) {
+Edge::Edge(Node *start, Node* end, float w) {
 	startPoint = start;
 	endPoint = end;
 	weight = w;

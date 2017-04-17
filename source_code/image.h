@@ -61,12 +61,16 @@ public:
   int Width() const { return width; }
   int Height() const { return height; }
   const Color& GetPixel(int x, int y) const {
-    assert(x >= 0 && x < width);
-    assert(y >= 0 && y < height);
+    assert(x >= 0);
+    assert(x < width);
+    assert(y >= 0);
+    assert(y < height);
     return data[y*width + x]; }
   Color& GetPixel(int x, int y) {
-    assert(x >= 0 && x < width);
-    assert(y >= 0 && y < height);
+    assert(x >= 0);
+    assert(x < width);
+    assert(y >= 0);
+    assert(y < height);
     return data[y*width + x]; }
 
   // =========
