@@ -3,11 +3,15 @@
 #include <fstream>
 #include <vector>
 #include <list>
+#include <list>
+#include <utility>
 
 #include "node.h"
 #include "image.h"
+#include "voronoi_region.h"
 
 typedef std::vector<std::vector<Node> > Graph;
+typedef std::vector<std::vector<VoronoiRegion> > V_Graph;
 
 // ===========================================================================================
 
@@ -35,11 +39,19 @@ void sparsePixelHeuristic(Graph &graph, const Image &image, int x, int y);
 void removeDiagonals(Graph& graph);
 
 // functions for creating Voronoi diagram
-void makeVoronoi(const Graph &graph, std::list<Node> &nodes, std::list<Edge> &edges);
+void makeVoronoi(const Graph &graph, const Image &image, V_Graph &voronoi);
+bool edgeExists(int startX, int startY, int endX, int endY, const Graph& graph);
+
+// function for simplifying the Voronoi diagram
+void simplifyVoronoi(V_Graph &voronoi);
+bool isBoundary(float x, float y, int boundX, int boundY);
+
+// functions for B-splines
 
 // ===========================================================================================
 // FUNCTIONS FOR DEBUGGING
 void printGraph(const Graph &graph); 
+void printVoronoi(const V_Graph &voronoi);
 
 // ===========================================================================================
 int main(int argc, char* argv[]) {
@@ -101,12 +113,18 @@ int main(int argc, char* argv[]) {
 
 	// remove the diagonals based on the aggregated weight
 	removeDiagonals(similarity_graph);
-	printGraph(similarity_graph);
+	//printGraph(similarity_graph);
 
 
 	// create Voronoi diagram
-	std::list<Node> VNodes;
-	std::list<Edge> VEdges;
+	V_Graph voronoi;
+	makeVoronoi(similarity_graph, image, voronoi);
+	printVoronoi(voronoi);
+
+	std::cout << std::endl << "Simplified Voronoi" << std::endl;
+
+	simplifyVoronoi(voronoi);
+	printVoronoi(voronoi);
 
 	return 0;
 }
@@ -508,20 +526,227 @@ void removeDiagonals(Graph& graph) {
 
 // ===========================================================================================
 
-void makeVoronoi(const Graph &graph, std::list<Node> &nodes, std::list<Edge> &edges) {
+// determine if there is an edge between the two nodes
+bool edgeExists(int startX, int startY, int endX, int endY, const Graph& graph) {
+	return graph[startX][startY].hasEdge(endX, endY);
+}
+
+// make the Voronoi diagram - represented as a 2d vector of vector of pairs(that are the points)
+void makeVoronoi(const Graph &graph, const Image &image, V_Graph &voronoi) {
 	// go through the similarity graph
 	for(unsigned int x = 0; x < graph.size(); x++) {
-		for(unsigned int y = 0; y < graph[x].size(); y++) {
+		std::vector<VoronoiRegion> tmp;
 
+		// assumes that the point (x,y) is in the corner of a square area
+		for(unsigned int y = 0; y < graph[x].size(); y++) {
+			VoronoiRegion shape(image.GetPixel(x, y));
+
+			float xCenter = x + 0.5;
+			float yCenter = y + 0.5;
+
+			// Top left
+			if(x > 0 && y > 0) {
+				// if there's an edge going to the top left
+				if(graph[x-1][y-1].hasEdge(x, y)) {
+					shape.addPoint(xCenter-0.75, yCenter-0.25);
+					shape.addPoint(xCenter-0.25, yCenter-0.75);
+				}
+				else if(graph[x-1][y].hasEdge(x, y-1)) {
+					shape.addPoint(xCenter-0.25, yCenter-0.25);
+				}
+				else {
+					shape.addPoint(xCenter-0.5, yCenter-0.5);
+				}
+			}
+			else {
+				shape.addPoint(xCenter-0.5, yCenter-0.5);
+			}
+
+			// Top
+			shape.addPoint(xCenter, yCenter-0.5);
+
+			// Top Right
+			if(x+1 < graph.size() && y > 0) {
+				if(graph[x][y].hasEdge(x+1, y-1)) {
+					shape.addPoint(xCenter+0.25, yCenter-0.75);
+					shape.addPoint(xCenter+0.75, yCenter-0.25);
+				}
+				else if(graph[x][y-1].hasEdge(x+1, y)) {
+					shape.addPoint(xCenter+0.25, yCenter-0.25);
+				}
+				else {
+					shape.addPoint(xCenter+0.5, yCenter-0.5);
+				}
+			}
+			else if(x < graph.size()) {
+				shape.addPoint(xCenter+0.5, yCenter-0.5);
+			}
+
+			// Right
+			shape.addPoint(xCenter+0.5, yCenter);
+
+			// Bottom Right
+			if(x+1 < graph.size() && y+1 < graph[x].size()) {
+				if(graph[x][y].hasEdge(x+1, y+1)) {
+					shape.addPoint(xCenter+0.75, yCenter+0.25);
+					shape.addPoint(xCenter+0.25, yCenter+0.75);
+				}
+				else if(graph[x][y+1].hasEdge(x+1, y)) {
+					shape.addPoint(xCenter+0.25, yCenter+0.25);
+				}
+				else {
+					shape.addPoint(xCenter+0.5, yCenter+0.5);
+				}
+			}
+			else {
+				shape.addPoint(xCenter+0.5, yCenter+0.5);
+			}
+
+			// Bottom
+			shape.addPoint(xCenter, yCenter+0.5);
+
+			// Bottom Left
+			if(x > 0 && y+1 < graph[x].size()) {
+				if(graph[x-1][y+1].hasEdge(x, y)) {
+					shape.addPoint(xCenter-0.25, yCenter+0.75);
+					shape.addPoint(xCenter-0.75, yCenter+0.25);
+				}
+				else if(graph[x-1][y].hasEdge(x, y+1)) {
+					shape.addPoint(xCenter-0.25, yCenter+0.25);
+				}
+				else {
+					shape.addPoint(xCenter-0.5, yCenter+0.5);
+				}
+			}
+			else if(y < graph[x].size()) {
+				shape.addPoint(xCenter-0.5, yCenter+0.5);
+			}
+
+			// Left
+			shape.addPoint(xCenter-0.5, yCenter);
+
+			// add the color of the shape
+			shape.setColor(image.GetPixel(x,y));
+
+			// store coordinates for debugging
+			shape.storeX(x);
+			shape.storeY(y);
+
+			tmp.push_back(shape);
+		}
+
+		voronoi.push_back(tmp);
+	}
+}
+
+// simplify the Voronoi diagram
+void simplifyVoronoi(V_Graph &voronoi) {
+	// go through shapes in Voronoi diagrma
+	for(unsigned int x = 0; x < voronoi.size(); x++) {
+		for(unsigned int y = 0; y < voronoi[x].size(); y++) {
+
+			// go through all the pts in a shape
+			std::list<std::pair<float, float> > pts = voronoi[x][y].getPts();
+			for(std::list<std::pair<float, float> >::iterator itr = pts.begin(); 
+				itr != pts.end(); itr++) {
+
+				std::vector<std::pair<int, int> > indices;
+				indices.push_back(std::make_pair(x, y));
+
+				// check the 8 surrounding squares for the pt
+				
+				// TOP LEFT
+				if(x > 0 && y > 0) {
+					if(voronoi[x-1][y-1].hasPoint(itr->first, itr->second)) {
+						indices.push_back(std::make_pair(x-1, y-1));
+					}
+				}
+
+				// TOP
+				if(y > 0) {
+					if(voronoi[x][y-1].hasPoint(itr->first, itr->second)) {
+						indices.push_back(std::make_pair(x, y-1));
+					}
+				}
+
+				// TOP RIGHT
+				if(x+1 < voronoi.size() && y > 0) {
+					if(voronoi[x+1][y-1].hasPoint(itr->first, itr->second)) {
+						indices.push_back(std::make_pair(x+1, y-1));
+					}
+				}
+
+				// RIGHT
+				if(x+1 < voronoi.size()) {
+					if(voronoi[x+1][y].hasPoint(itr->first, itr->second)) {
+						indices.push_back(std::make_pair(x+1, y));
+					}
+				}
+
+				// BOTTOM RIGHT
+				if(x+1 < voronoi.size() && y+1 < voronoi[x].size()) {
+					if(voronoi[x+1][y+1].hasPoint(itr->first, itr->second)) {
+						indices.push_back(std::make_pair(x+1, y+1));
+					}
+				}
+
+				// BOTTOM
+				if(y+1 < voronoi[x].size()) {
+					if(voronoi[x][y+1].hasPoint(itr->first, itr->second)) {
+						indices.push_back(std::make_pair(x, y+1));
+					}
+				}
+
+				// BOTTOM LEFT
+				if(x > 0 && y+1 < voronoi[x].size()) {
+					if(voronoi[x-1][y+1].hasPoint(itr->first, itr->second)) {
+						indices.push_back(std::make_pair(x-1, y+1));
+					}
+				}
+
+				// LEFT
+				if(x > 0) {
+					if(voronoi[x-1][y].hasPoint(itr->first, itr->second)) {
+						indices.push_back(std::make_pair(x-1, y));
+					}
+				}
+
+				// skip points with valence 2 on the boundary
+				if(isBoundary(itr->first, itr->second, voronoi.size(), voronoi[x].size())) {
+					continue;
+				}
+
+				// if valance (same) is 2, erase pt from wherever it occurs in diagram
+				if(indices.size() == 2) {
+					for(unsigned int i = 0; i < indices.size(); i++) {
+						voronoi[indices[i].first][indices[i].second].removePoint(itr->first, itr->second);
+					}
+				}
+			}
 		}
 	}
 }
 
+// determine if point (x,y) is on the bounds of the grid
+bool isBoundary(float x, float y, int boundX, int boundY) {
+	float EPSILON = 0.0001;
 
+	if((x > -EPSILON && x < EPSILON ) || (y > -EPSILON && y < EPSILON) ||
+		(x > boundX - EPSILON && x < boundX + EPSILON) ||
+		(y > boundY - EPSILON && y < boundY + EPSILON)) {
+		return true;
+	}
 
+	return false;
+}
 
+// ===========================================================================================
+// DEBUGGING FUNCTIONS
+
+// print the nodes and their connected nodes in the similarity graph
 void printGraph(const Graph &graph) {
-	std::cout << graph.size() << std::endl;
+	std::cout << "Print Similarity Graph" << std::endl;
+	std::cout << "Graph size: " << graph.size() << std::endl;
 
 	for(unsigned int x = 0; x < graph.size(); x++) {
 		for(unsigned int y = 0; y < graph.size(); y++) {
@@ -532,6 +757,18 @@ void printGraph(const Graph &graph) {
 				std::cout << "    " << edges[i].getEnd()->getXCoor() << " " << edges[i].getEnd()->getYCoor() << " "
 						  << edges[i].getWeight() << std::endl;
 			}
+		}
+	}
+}
+
+// print the points of the regions of the voronoi diagram
+void printVoronoi(const V_Graph &voronoi) {
+	std::cout << "Print Voronoi Diagram" << std::endl;
+
+	for(unsigned int x = 0; x < voronoi.size(); x++) {
+		for(unsigned int y = 0; y < voronoi[x].size(); y++) {
+			voronoi[x][y].print();
+			std::cout << std::endl;
 		}
 	}
 }

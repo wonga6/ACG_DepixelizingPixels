@@ -49,8 +49,8 @@ class Node {
 		bool hasEdge(int endX, int endY) const;
 
 	private:
-		int xCoor;
-		int yCoor;
+		float xCoor;
+		float yCoor;
 		std::vector<Edge> edges;
 };
 
