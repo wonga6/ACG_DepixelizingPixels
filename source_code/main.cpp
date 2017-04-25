@@ -12,6 +12,7 @@
 
 typedef std::vector<std::vector<Node> > Graph;
 typedef std::vector<std::vector<VoronoiRegion> > V_Graph;
+typedef std::vector<std::pair<float, float> > Spline;
 
 // ===========================================================================================
 
@@ -45,13 +46,27 @@ bool edgeExists(int startX, int startY, int endX, int endY, const Graph& graph);
 // function for simplifying the Voronoi diagram
 void simplifyVoronoi(V_Graph &voronoi);
 bool isBoundary(float x, float y, int boundX, int boundY);
+void addEdgesVoronoi(V_Graph &voronoi);
+
+// functions to create shapes
+void createShapes(std::vector<std::vector<VoronoiRegion> > &shapes, const Graph &similarity_graph,
+	const V_Graph &voronoi);
+void inShape(const VoronoiRegion &vr, const VoronoiRegion &connected,
+	std::vector<std::vector<VoronoiRegion> > &shapes);
+void removeSimilar(std::vector<std::vector<VoronoiRegion> > &shapes);
 
 // functions for B-splines
+void makeBSplines(std::vector<Spline> &bsplines, const V_Graph &voronoi);
+std::pair<float, float> cubicBSpline(const std::vector<std::pair<float, float> > &points, float t);
 
 // ===========================================================================================
 // FUNCTIONS FOR DEBUGGING
+
 void printGraph(const Graph &graph); 
 void printVoronoi(const V_Graph &voronoi);
+void printVoronoiEdges(const V_Graph &voronoi);
+void printShapes(const std::vector<std::vector<VoronoiRegion> > &shapes);
+void printShapeEdges(const std::vector<std::vector<VoronoiRegion> > &shapes);
 
 // ===========================================================================================
 int main(int argc, char* argv[]) {
@@ -119,12 +134,25 @@ int main(int argc, char* argv[]) {
 	// create Voronoi diagram
 	V_Graph voronoi;
 	makeVoronoi(similarity_graph, image, voronoi);
-	printVoronoi(voronoi);
+	//printVoronoi(voronoi);
 
 	std::cout << std::endl << "Simplified Voronoi" << std::endl;
 
 	simplifyVoronoi(voronoi);
-	printVoronoi(voronoi);
+	//printVoronoi(voronoi);
+
+	std::cout << "Voronoi Edges" << std::endl;
+	addEdgesVoronoi(voronoi);
+	//printVoronoiEdges(voronoi);
+
+	std::cout << "Create Shapes" << std::endl;
+	std::vector<std::vector<VoronoiRegion> > shapes;
+	createShapes(shapes, similarity_graph, voronoi);
+	//printShapes(shapes);
+
+	std::cout << "Remove Similar" << std::endl;
+	removeSimilar(shapes);
+	printShapeEdges(shapes);
 
 	return 0;
 }
@@ -469,7 +497,7 @@ int curveHeuristicHelp(Graph &graph,
       connections++;
     }
   if (connections==1){
-    return 1 + curveHeuristicHelp(graph, startNodex,startNodey,
+	    return 1 + curveHeuristicHelp(graph, startNodex,startNodey,
 				  connectX,connectY,
 				  currNodex,currNodey);
   }
@@ -740,6 +768,182 @@ bool isBoundary(float x, float y, int boundX, int boundY) {
 	return false;
 }
 
+// add edges between nodes of a shape
+void addEdgesVoronoi(V_Graph &voronoi) {
+	for(unsigned int x = 0; x < voronoi.size(); x++) {
+		for(unsigned int y = 0; y < voronoi[x].size(); y++) {
+			voronoi[x][y].addEdges();
+		}
+	}
+}
+
+// ===========================================================================================
+// FUNCTIONS TO CREATE SHAPES
+
+// main create shape function
+void createShapes(std::vector<std::vector<VoronoiRegion> > &shapes, const Graph &similarity_graph,
+	const V_Graph &voronoi) {
+
+	// go through voronoi diagram & similarity graph
+	for(unsigned int x = 0; x < voronoi.size(); x++) {
+		for(unsigned int y = 0; y < voronoi[x].size(); y++) {
+
+			bool hasConnection = false;
+
+			// check the Bottom Left
+			if(x > 0 && y+1 < voronoi[x].size()) {
+				if(similarity_graph[x-1][y+1].hasEdge(x, y)) {
+					VoronoiRegion vr = voronoi[x][y];
+					VoronoiRegion connected = voronoi[x-1][y+1];
+					inShape(vr, connected, shapes);
+					hasConnection = true;
+				}
+			}
+
+			// check the Left
+			if(x > 0) {
+				if(similarity_graph[x-1][y].hasEdge(x, y)) {
+					VoronoiRegion vr = voronoi[x][y];
+					VoronoiRegion connected = voronoi[x-1][y];
+					inShape(vr, connected, shapes);
+					hasConnection = true;
+				}
+			}
+
+			// check the Top Left
+			if(y > 0 && x > 0) {
+				if(similarity_graph[x-1][y-1].hasEdge(x, y)) {
+					VoronoiRegion vr = voronoi[x][y];
+					VoronoiRegion connected = voronoi[x-1][y-1];
+					inShape(vr, connected, shapes);
+					hasConnection = true;	
+				}
+			}
+
+			// check the Top
+			if(y > 0) {
+				if(similarity_graph[x][y].hasEdge(x, y-1)) {
+					VoronoiRegion vr = voronoi[x][y];
+					VoronoiRegion connected = voronoi[x][y-1];
+					inShape(vr, connected, shapes);
+					hasConnection = true;
+				}
+			}
+
+			if(!hasConnection) {
+				std::vector<VoronoiRegion> tmp(1, voronoi[x][y]);
+				shapes.push_back(tmp);
+			}
+
+		}
+	}
+
+}
+
+// add Voronoi shape to shapes vector
+void inShape(const VoronoiRegion &vr, const VoronoiRegion &connected,
+	std::vector<std::vector<VoronoiRegion> > &shapes) {
+
+	for(unsigned int i = 0; i < shapes.size(); i++) {
+		for(unsigned int j = 0; j < shapes[i].size(); j++) {
+
+			// if the coonnected shape is in the vector add shape to vector
+			if(shapes[i][j].getX() == connected.getX() && shapes[i][j].getY() == connected.getY()) {
+				shapes[i].push_back(vr);
+				return;
+			}
+
+		}
+	}
+
+	// else create a new spot in the vector
+	std::vector<VoronoiRegion> tmp(1, vr);
+	shapes.push_back(tmp);
+}
+
+// remove edges that are shared between shapes as they're not needed
+void removeSimilar(std::vector<std::vector<VoronoiRegion> > &shapes) {
+
+	// loop over all the shapes
+	for(unsigned int i = 0; i < shapes.size(); i++) {
+		for(unsigned int j = 0; j < shapes[i].size(); j++) {
+
+			// compare the edges in a shape to the ones in the shapes of the vector
+			for(unsigned int k = 0; k < shapes[i].size(); k++) {
+				if(k == j) continue;
+
+				// remove eedges that are shared between the sets
+				std::set<VoronoiEdge> edgesJ = shapes[i][j].getEdges();
+				std::set<VoronoiEdge>::iterator marker = edgesJ.begin();
+				for(std::set<VoronoiEdge>::iterator itr = edgesJ.begin(); itr != edgesJ.end() 
+					&& marker != edgesJ.end(); ) {
+
+					if(shapes[i][k].hasEdge(*itr)) {
+						marker++;
+						shapes[i][k].removeEdge(*itr);
+						itr = marker;
+					}
+					else {
+						itr++;
+						marker++;
+					}
+				}
+			}
+
+		}
+	}
+
+}
+
+// ===========================================================================================
+void makeBSplines(std::vector<Spline> &bsplines, const V_Graph &voronoi) {
+	
+	// go through all the shapes in the voronoi diagram
+	for(unsigned int x = 0; x < voronoi.size(); x++) {
+		for(unsigned int y = 0; y < voronoi[x].size(); y++) {
+
+		}
+	}
+}
+
+// cubic b splines equation
+std::pair<float, float> cubicBSpline(const std::vector<std::pair<float, float> > &points, float t) {
+	assert(points.size() == 4);
+
+	// p_i-3
+	float x_3 = (1 - t) * (1 - t) * (1 - t);
+	x_3 = (x_3 / 6) * points[0].first;
+
+	float y_3 = (1 - t) * (1 - t) * (1 - t);
+	y_3 = (y_3 / 6) * points[0].second;
+
+	// p_i-2
+	float x_2 = (3 * (t * t * t)) - (6 * (t * t)) + 4;
+	x_2 = (x_2 / 6) * points[1].first;
+
+	float y_2 = (3 * (t * t * t)) - (6 * (t * t)) + 4;
+	y_2 = (y_2 / 6) * points[1].second;
+
+	// p_i-1
+	float x_1 = (-3 * (t * t * t)) + (3 * (t * t )) + (3 * t) + 1;
+	x_1 = (x_1 / 6) * points[2].first;
+
+	float y_1 = (-3 * (t * t * t)) + (3 * (t * t )) + (3 * t) + 1;
+	y_1 = (y_1 / 6) * points[2].second;
+
+	// p_i
+	float x_0 = ((t * t * t) / 6) * points[3].first;
+
+	float y_0 = ((t * t * t) / 6) * points[3].second;
+
+	// sum point
+	float x = x_3 + x_2 + x_1 + x_0;
+	float y = y_3 + y_2 + y_1 + y_0;
+
+	std::pair<float, float> bSplinePoint = std::make_pair(x, y);
+	return bSplinePoint;
+}
+
 // ===========================================================================================
 // DEBUGGING FUNCTIONS
 
@@ -771,4 +975,50 @@ void printVoronoi(const V_Graph &voronoi) {
 			std::cout << std::endl;
 		}
 	}
+}
+
+// print the edges of each region in the Voronoi diagram
+void printVoronoiEdges(const V_Graph &voronoi) {
+	std::cout << "Print the edges of each shape of the Voronoi diagram" << std::endl;
+
+	for(unsigned int x = 0; x < voronoi.size(); x++) {
+		for(unsigned int y = 0; y < voronoi[x].size(); y++) {
+			voronoi[x][y].printEdges();
+			std::cout << std::endl;
+		}
+	}
+}
+
+// print the shape groups
+void printShapes(const std::vector<std::vector<VoronoiRegion> > &shapes) {
+
+	std::cout << "==========================" << std::endl;
+
+	for(unsigned int i = 0; i < shapes.size(); i++) {
+		for(unsigned int j = 0; j < shapes[i].size(); j++) {
+			Color c = shapes[i][j].getColor();
+			std::cout << "Color: " << c.r << " " << c.g << " " << c.b << std::endl;
+			std::cout << shapes[i][j].getX() << " " << shapes[i][j].getY() << std::endl;
+		}
+
+		std::cout << std::endl;
+	}
+
+	std::cout << "==========================" << std::endl;
+}
+
+// print the edges of the shape groups
+void printShapeEdges(const std::vector<std::vector<VoronoiRegion> > &shapes) {
+
+	std::cout << "==========================" << std::endl;
+
+	for(unsigned int i = 0; i < shapes.size(); i++) {
+		for(unsigned int j = 0; j < shapes[i].size(); j++) {
+			shapes[i][j].printEdges();
+		}
+
+		std::cout << std::endl;
+	}
+
+	std::cout << "==========================" << std::endl;
 }

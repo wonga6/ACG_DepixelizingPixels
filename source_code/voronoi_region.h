@@ -4,9 +4,43 @@
 #include <list>
 #include <map>
 #include <list>
+#include <set>
 #include <utility>
 
 #include "image.h"
+
+// class to store the edge in a Voronoi diagram
+class VoronoiEdge {
+	public:
+		VoronoiEdge(const std::pair<float, float> &start,
+			const std::pair<float, float> &end) : startPoint(start),
+			endPoint(end) { }
+
+		std::pair<float, float> startPoint;
+		std::pair<float, float> endPoint;
+
+		bool operator<(const VoronoiEdge &ve) const {
+			return startPoint.first < ve.startPoint.first ||
+				startPoint.second < ve.startPoint.second ||
+				endPoint.first < ve.endPoint.first ||
+				endPoint.second < ve.endPoint.second;
+		}
+};
+
+bool operator==(const VoronoiEdge& a, const VoronoiEdge& b) {
+	float EPSILON = 0.0001;
+
+	if((a.startPoint.first > b.startPoint.first - EPSILON && 
+		a.startPoint.second < b.startPoint.second + EPSILON) &&
+	   (a.endPoint.first > b.endPoint.first - EPSILON && 
+	   	a.endPoint.second < b.endPoint.second + EPSILON)) {
+		return true;
+	}
+
+	return false;
+}
+
+
 
 // class to store the points that define the shape of the region
 // and the color
@@ -24,8 +58,11 @@ class VoronoiRegion {
 		void storeY (int yCor) { y = yCor; }
 
 		// ACCESSOR FUNCTIONS
+		const int getX() const { return x; }
+		const int getY() const { return y; }
 		const Color& getColor() const { return c; }
 		const std::list<std::pair<float, float> >& getPts() const { return pts; }
+		const std::set<VoronoiEdge>& getEdges() { return edges; }
 
 		// OTHER FUNCTIONs
 
@@ -58,6 +95,60 @@ class VoronoiRegion {
 			}
 		}
 
+		// add the edges between the points of the list - points in clockwise order
+		void addEdges() {
+			std::list<std::pair<float, float> >::iterator itr = pts.begin();
+
+			std::cout << "All pts:" << std::endl;
+			for(; itr != pts.end(); itr++) {
+				std::cout << "(" << itr->first << "," << itr->second << ")" << std::endl;
+			}
+			
+			std::cout << "----------------------" << std::endl;
+			itr = pts.begin();
+			// add the edges between the points
+			while(itr != pts.end()) {
+				std::pair<float, float> start = *itr;
+				itr++;
+
+				if(itr == pts.end()) break;
+
+				std::pair<float, float> end = *itr;
+
+				VoronoiEdge tmp(start, end);
+				std::pair<std::set<VoronoiEdge>::iterator, bool> result = edges.insert(tmp);
+				std::cout << "("<< start.first << " " << start.second << ")  "  << "(" << end.first << " " << end.second <<") " << result.second << std::endl;
+			}
+
+			// connect the last point in the list and the first point
+			VoronoiEdge connect(pts.back(), pts.front());
+			edges.insert(connect);
+
+			std::cout << std::endl;
+		}
+
+		// erase an edge from the set
+		void removeEdge(const VoronoiEdge &ve) {
+			edges.erase(ve);
+		}
+
+		// determine if set has an edge (or its opposite)
+		bool hasEdge(const VoronoiEdge &ve) {
+			std::set<VoronoiEdge>::iterator itr = edges.find(ve);
+
+			// if not in the set test for the opposite direction
+			if(itr == edges.end()) {
+				VoronoiEdge opp(ve.endPoint, ve.startPoint);
+				itr = edges.find(opp);
+
+				if(itr == edges.end()) {
+					return false;
+				}
+			}
+
+			return true;
+		}
+
 		// PRINT FUNCTIONS
 		void print() const {
 			std::cout << "Place in sim graph: " << x << " " << y << std::endl;
@@ -68,9 +159,23 @@ class VoronoiRegion {
 			}
 		}
 
+		void printEdges() const {
+			std::cout << "Place in sim graph: " << x << " " << y << std::endl;
+			std::cout << "Color: " << c.r << " " << c.g << " " << c.b << std::endl;
+
+			for(std::set<VoronoiEdge>::const_iterator itr = edges.begin(); itr != edges.end();
+				itr++) {
+				std::cout << "( " << itr->startPoint.first << "," << itr->startPoint.second << " )";
+				std::cout << " -----> ( " << itr->endPoint.first << "," << itr->endPoint.second << " )";
+				std::cout << std::endl;
+			}
+		}
+
 	private:
 		std::list<std::pair<float, float> > pts;
 		Color c;
+
+		std::set<VoronoiEdge> edges;
 
 		// store coordinates on graph
 		int x;
