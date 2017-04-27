@@ -869,8 +869,7 @@ void removeSimilar(std::vector<std::vector<VoronoiRegion> > &shapes) {
 		for(unsigned int j = 0; j < shapes[i].size(); j++) {
 
 			// compare the edges in a shape to the ones in the shapes of the vector
-			for(unsigned int k = 0; k < shapes[i].size(); k++) {
-				if(k == j) continue;
+			for(unsigned int k = 0; k < j; k++) {
 
 				// remove eedges that are shared between the sets
 				std::set<VoronoiEdge> edgesJ = shapes[i][j].getEdges();
@@ -880,6 +879,7 @@ void removeSimilar(std::vector<std::vector<VoronoiRegion> > &shapes) {
 
 					if(shapes[i][k].hasEdge(*itr)) {
 						marker++;
+						shapes[i][j].removeEdge(*itr);
 						shapes[i][k].removeEdge(*itr);
 						itr = marker;
 					}

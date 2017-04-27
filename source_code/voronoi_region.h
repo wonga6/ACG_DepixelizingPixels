@@ -144,7 +144,18 @@ class VoronoiRegion {
 
 		// erase an edge from the set
 		void removeEdge(const VoronoiEdge &ve) {
-			edges.erase(ve);
+		  std::set<VoronoiEdge>::iterator itr = edges.find(ve);
+		  
+		  // if not in the set test for the opposite direction
+		  if(itr == edges.end()) {
+		    VoronoiEdge opp(ve.endPoint, ve.startPoint);
+		    itr = edges.find(opp);
+		    
+		    if(itr == edges.end()) {
+		      return;
+		    }
+		  }
+		  edges.erase(*itr);
 		}
 
 		// determine if set has an edge (or its opposite)
