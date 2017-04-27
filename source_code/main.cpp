@@ -9,6 +9,7 @@
 #include "node.h"
 #include "image.h"
 #include "voronoi_region.h"
+#include "shapePaths.h"
 
 typedef std::vector<std::vector<Node> > Graph;
 typedef std::vector<std::vector<VoronoiRegion> > V_Graph;
@@ -99,7 +100,7 @@ int main(int argc, char* argv[]) {
 	removeDiagonals2x2(similarity_graph);
 	//printGraph(similarity_graph);
 
-	// go through the graph and run the 3 hueristics on the cross diagonals
+	// go through the graph and run the 3 heuristics on the cross diagonals
 	for(unsigned int x = 0; x < similarity_graph.size(); x++) {
 		for(unsigned int y = 0; y < similarity_graph[x].size(); y++) {
 
@@ -153,6 +154,7 @@ int main(int argc, char* argv[]) {
 	std::cout << "Remove Similar" << std::endl;
 	removeSimilar(shapes);
 	printShapeEdges(shapes);
+
 
 	return 0;
 }
@@ -894,6 +896,7 @@ void removeSimilar(std::vector<std::vector<VoronoiRegion> > &shapes) {
 	}
 
 }
+
 
 // ===========================================================================================
 void makeBSplines(std::vector<Spline> &bsplines, const V_Graph &voronoi) {
