@@ -6,8 +6,14 @@
 #include <list>
 #include <set>
 #include <utility>
+#include <cmath>
 
 #include "image.h"
+
+bool floatEquals(float a, float b){
+  float EPSILON = 0.0001;
+  return abs(a - b) < EPSILON;
+}
 
 // class to store the edge in a Voronoi diagram
 class VoronoiEdge {
@@ -20,23 +26,32 @@ class VoronoiEdge {
 		std::pair<float, float> endPoint;
 
 		bool operator<(const VoronoiEdge &ve) const {
-			return startPoint.first < ve.startPoint.first ||
-				startPoint.second < ve.startPoint.second ||
-				endPoint.first < ve.endPoint.first ||
-				endPoint.second < ve.endPoint.second;
+		  if (startPoint.first < ve.startPoint.first)
+		    return true;
+		  else if (floatEquals(startPoint.first, ve.startPoint.first)){
+		    if (startPoint.second < ve.startPoint.second)
+		      return true;
+		    else if (floatEquals(startPoint.second,ve.startPoint.second)){
+		      if (endPoint.first < ve.endPoint.first)
+			return true;
+		      else if (floatEquals(endPoint.first, ve.endPoint.first) &&
+			       endPoint.second < ve.endPoint.second)
+			return true;
+		    }
+		  }
+		  return false;
 		}
 };
 
 bool operator==(const VoronoiEdge& a, const VoronoiEdge& b) {
-	float EPSILON = 0.0001;
 
-	if((a.startPoint.first > b.startPoint.first - EPSILON && 
-		a.startPoint.second < b.startPoint.second + EPSILON) &&
-	   (a.endPoint.first > b.endPoint.first - EPSILON && 
-	   	a.endPoint.second < b.endPoint.second + EPSILON)) {
-		return true;
+	if(floatEquals(a.startPoint.first, b.startPoint.first) && 
+	   floatEquals(a.startPoint.second,b.startPoint.second) &&
+	   floatEquals(a.endPoint.first, b.endPoint.first) && 
+	   floatEquals(a.endPoint.second, b.endPoint.second)) {
+	  return true;
 	}
-
+	
 	return false;
 }
 

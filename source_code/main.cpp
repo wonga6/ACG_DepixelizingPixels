@@ -801,7 +801,7 @@ void createShapes(std::vector<std::vector<VoronoiRegion> > &shapes, const Graph 
 			}
 
 			// check the Left
-			if(x > 0) {
+			if(!hasConnection && x > 0) {
 				if(similarity_graph[x-1][y].hasEdge(x, y)) {
 					VoronoiRegion vr = voronoi[x][y];
 					VoronoiRegion connected = voronoi[x-1][y];
@@ -811,7 +811,7 @@ void createShapes(std::vector<std::vector<VoronoiRegion> > &shapes, const Graph 
 			}
 
 			// check the Top Left
-			if(y > 0 && x > 0) {
+			if(!hasConnection && y > 0 && x > 0) {
 				if(similarity_graph[x-1][y-1].hasEdge(x, y)) {
 					VoronoiRegion vr = voronoi[x][y];
 					VoronoiRegion connected = voronoi[x-1][y-1];
@@ -821,7 +821,7 @@ void createShapes(std::vector<std::vector<VoronoiRegion> > &shapes, const Graph 
 			}
 
 			// check the Top
-			if(y > 0) {
+			if(!hasConnection && y > 0) {
 				if(similarity_graph[x][y].hasEdge(x, y-1)) {
 					VoronoiRegion vr = voronoi[x][y];
 					VoronoiRegion connected = voronoi[x][y-1];
