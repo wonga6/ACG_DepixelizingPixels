@@ -58,16 +58,16 @@ bool operator==(const VoronoiEdge& a, const VoronoiEdge& b) {
 
 
 // class to store the points that define the shape of the region
-// and the color
+// and the ImageColor
 
 class VoronoiRegion {
 	public:
 		// CONSTRUCTORS
-		VoronoiRegion(const Color &col) : c(col) {}
+		VoronoiRegion(const ImageColor &col) : c(col) {}
 
 		// MODIFIER FUNCTIONS
 		void addPoint(float x, float y) { pts.push_back(std::make_pair(x, y)); }
-		void setColor(const Color &clr) { c = clr; }
+		void setImageColor(const ImageColor &clr) { c = clr; }
 
 		void storeX (int xCor) { x = xCor; }
 		void storeY (int yCor) { y = yCor; }
@@ -75,7 +75,7 @@ class VoronoiRegion {
 		// ACCESSOR FUNCTIONS
 		const int getX() const { return x; }
 		const int getY() const { return y; }
-		const Color& getColor() const { return c; }
+		const ImageColor& getImageColor() const { return c; }
 		const std::list<std::pair<float, float> >& getPts() const { return pts; }
 		const std::set<VoronoiEdge>& getEdges() { return edges; }
 
@@ -178,7 +178,7 @@ class VoronoiRegion {
 		// PRINT FUNCTIONS
 		void print() const {
 			std::cout << "Place in sim graph: " << x << " " << y << std::endl;
-			std::cout << "Color: " << c.r << " " << c.g << " " << c.b << std::endl;
+			std::cout << "ImageColor: " << c.r << " " << c.g << " " << c.b << std::endl;
 			for(std::list<std::pair<float, float> >::const_iterator itr = pts.begin(); 
 				itr != pts.end(); itr++) {
 				std::cout << itr->first << " " << itr->second << std::endl;
@@ -187,7 +187,7 @@ class VoronoiRegion {
 
 		void printEdges() const {
 			std::cout << "Place in sim graph: " << x << " " << y << std::endl;
-			std::cout << "Color: " << c.r << " " << c.g << " " << c.b << std::endl;
+			std::cout << "ImageColor: " << c.r << " " << c.g << " " << c.b << std::endl;
 
 			for(std::set<VoronoiEdge>::const_iterator itr = edges.begin(); itr != edges.end();
 				itr++) {
@@ -199,7 +199,7 @@ class VoronoiRegion {
 
 	private:
 		std::list<std::pair<float, float> > pts;
-		Color c;
+		ImageColor c;
 
 		std::set<VoronoiEdge> edges;
 

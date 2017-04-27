@@ -6,9 +6,9 @@
 #include <iostream>
 #include <limits>
 
-class Color {
+class ImageColor {
 public:
-  Color(int r_=255, int g_=255, int b_=255) : r(r_),g(g_),b(b_) {}
+  ImageColor(int r_=255, int g_=255, int b_=255) : r(r_),g(g_),b(b_) {}
   bool isWhite() const { return r==255 && g==255 && b==255; }
   bool isBlack() const { return r==0 && g==0 && b==0; }
   int r,g,b;
@@ -32,7 +32,7 @@ public:
       data = NULL;
     } else {
       assert (width > 0 && height > 0);
-      data = new Color[width*height]; 
+      data = new ImageColor[width*height]; 
     }
   }
   ~Image() {
@@ -60,13 +60,13 @@ public:
   // ACCESSORS
   int Width() const { return width; }
   int Height() const { return height; }
-  const Color& GetPixel(int x, int y) const {
+  const ImageColor& GetPixel(int x, int y) const {
     assert(x >= 0);
     assert(x < width);
     assert(y >= 0);
     assert(y < height);
     return data[y*width + x]; }
-  Color& GetPixel(int x, int y) {
+  ImageColor& GetPixel(int x, int y) {
     assert(x >= 0);
     assert(x < width);
     assert(y >= 0);
@@ -75,10 +75,10 @@ public:
 
   // =========
   // MODIFIERS
-  void SetAllPixels(const Color &value) {
+  void SetAllPixels(const ImageColor &value) {
     for (int i = 0; i < width*height; i++) {
       data[i] = value; } }
-  void SetPixel(int x, int y, const Color &value) {
+  void SetPixel(int x, int y, const ImageColor &value) {
     assert(x >= 0 && x < width);
     assert(y >= 0 && y < height);
     data[y*width + x] = value; }
@@ -93,7 +93,7 @@ private:
   // REPRESENTATION
   int width;
   int height;
-  Color *data;
+  ImageColor *data;
 };
 
 // ====================================================================

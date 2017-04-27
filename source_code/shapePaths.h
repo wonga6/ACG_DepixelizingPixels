@@ -12,8 +12,8 @@ float myDistance(const std::pair<float,float>& a, const std::pair<float,float>& 
 
 class ShapePaths {
  public:
- ShapePaths(const Color &col) : c(col) {}
-  const Color& getColor() const { return c; } 
+ ShapePaths(const ImageColor &col) : c(col) {}
+  const ImageColor& getImageColor() const { return c; } 
   const std::vector<std::pair<float,float> >& getSubCurve(int i) const {
     if (i >= pts.size()){
       return pts[0];
@@ -79,7 +79,7 @@ class ShapePaths {
   }
  private:
   std::vector<std::vector<std::pair<float,float> > > pts;
-  Color c;
+  ImageColor c;
 };
 
 #endif

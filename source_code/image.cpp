@@ -26,7 +26,7 @@ bool Image::Save(const std::string &filename) const {
   // flip y so that (0,0) is bottom left corner
   for (int y = height-1; y >= 0; y--) {
     for (int x=0; x<width; x++) {
-      Color v = GetPixel(x,y);
+      ImageColor v = GetPixel(x,y);
       fputc ((unsigned char)(v.r),file);
       fputc ((unsigned char)(v.g),file);
       fputc ((unsigned char)(v.b),file);
@@ -61,11 +61,11 @@ bool Image::Load(const std::string &filename) {
 
   // the data
   delete [] data;
-  data = new Color[height*width];
+  data = new ImageColor[height*width];
   // flip y so that (0,0) is bottom left corner
   for (int y = height-1; y >= 0; y--) {
     for (int x = 0; x < width; x++) {
-      Color c;
+      ImageColor c;
       c.r = fgetc(file);
       c.g = fgetc(file);
       c.b = fgetc(file);

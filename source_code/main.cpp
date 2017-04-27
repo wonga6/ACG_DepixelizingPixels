@@ -11,6 +11,9 @@
 #include "voronoi_region.h"
 #include "shapePaths.h"
 
+#include "simple_svg_1.0.0.hpp"
+using namespace svg;
+
 typedef std::vector<std::vector<Node> > Graph;
 typedef std::vector<std::vector<VoronoiRegion> > V_Graph;
 typedef std::vector<std::pair<float, float> > Spline;
@@ -19,10 +22,10 @@ typedef std::vector<std::pair<float, float> > Spline;
 
 void createGraph(Graph& similarity_graph, const Image &image);
 
-// functions for disconnecting nodes of dissimilar colors
+// functions for disconnecting nodes of dissimilar ImageColors
 void disconnectDissimilar(Graph& similarity_graph, const Image &image);
-void calcYUV(const Color &c, float &y, float &u, float &v);
-bool compareYUV(const Color &current, const Color &connected);
+void calcYUV(const ImageColor &c, float &y, float &u, float &v);
+bool compareYUV(const ImageColor &current, const ImageColor &connected);
 
 // functions for removing diagonals in 2x2 squares of pixels
 void removeDiagonals2x2(Graph &similarity_graph);
@@ -210,18 +213,18 @@ void createGraph(Graph& similarity_graph, const Image &image) {
 
 // ===========================================================================================
 
-// disconnect edges of nodes with dissimilar colors
+// disconnect edges of nodes with dissimilar ImageColors
 void disconnectDissimilar(Graph& similarity_graph, const Image &image) {
 	// go through all the nodes
 	for(unsigned int x = 0; x < similarity_graph.size(); x++) {
 		for(unsigned int y = 0; y < similarity_graph[x].size(); y++) {
-			Color current = image.GetPixel(x, y);
+			ImageColor current = image.GetPixel(x, y);
 
 			// check North node
 			if(y > 0) {
-				Color north = image.GetPixel(x, y-1);
+				ImageColor north = image.GetPixel(x, y-1);
 				
-				// if colors aren't similar
+				// if ImageColors aren't similar
 				if(!compareYUV(current, north)) {
 					//std::cout << "similar" << std::endl;
 					// get the edge
@@ -235,9 +238,9 @@ void disconnectDissimilar(Graph& similarity_graph, const Image &image) {
 
 			// check North-east node
 			if(x+1 < similarity_graph.size() && y > 0) {
-				Color northEast = image.GetPixel(x+1, y-1);
+				ImageColor northEast = image.GetPixel(x+1, y-1);
 				
-				// if colors aren't similar
+				// if ImageColors aren't similar
 				if(!compareYUV(current, northEast)) {
 					//std::cout << "similar" << std::endl;
 					// get the edge
@@ -251,9 +254,9 @@ void disconnectDissimilar(Graph& similarity_graph, const Image &image) {
 
 			// check East node
 			if(x+1 < similarity_graph.size()) {
-				Color east = image.GetPixel(x+1, y);
+				ImageColor east = image.GetPixel(x+1, y);
 				
-				// if colors aren't similar
+				// if ImageColors aren't similar
 				if(!compareYUV(current, east)) {
 					//std::cout << "similar" << std::endl;
 					// get the edge
@@ -267,9 +270,9 @@ void disconnectDissimilar(Graph& similarity_graph, const Image &image) {
 
 			// check South-east node
 			if(x+1 < similarity_graph.size() && y+1 < similarity_graph[x].size()) {
-				Color southEast = image.GetPixel(x+1, y+1);
+				ImageColor southEast = image.GetPixel(x+1, y+1);
 				
-				// if colors aren't similar
+				// if ImageColors aren't similar
 				if(!compareYUV(current, southEast)) {
 					//std::cout << "similar" << std::endl;
 					// get the edge
@@ -283,11 +286,11 @@ void disconnectDissimilar(Graph& similarity_graph, const Image &image) {
 		}
 	}
 
-	std::cout << "Finished disconnecting dissimilar nodes w/ pixels of dissimilar colors" << std::endl;
+	std::cout << "Finished disconnecting dissimilar nodes w/ pixels of dissimilar ImageColors" << std::endl;
 }
 
-// calculate the YUV of the RGB color
-void calcYUV(const Color &c, float &y, float &u, float &v) {
+// calculate the YUV of the RGB ImageColor
+void calcYUV(const ImageColor &c, float &y, float &u, float &v) {
 	float w_r = 0.299;
 	float w_g = 0.587;
 	float w_b = 0.114;
@@ -299,8 +302,8 @@ void calcYUV(const Color &c, float &y, float &u, float &v) {
 	v = v_max * ((c.r - y) / (1 - w_r));
  }
 
-// returns true if the colors are similar, false if dissimilar
-bool compareYUV(const Color &current, const Color &connected) {
+// returns true if the ImageColors are similar, false if dissimilar
+bool compareYUV(const ImageColor &current, const ImageColor &connected) {
 
 	float currY, currU, currV;
 	float connY, connU, connV;
@@ -397,15 +400,15 @@ void islandsHeuristic(Graph &graph, int x, int y) {
 	}
 }
 
-// weight of the edge is the difference in the number of nodes with the same color in the 
+// weight of the edge is the difference in the number of nodes with the same ImageColor in the 
 // 8x8 window
 void sparsePixelHeuristic(Graph &graph, const Image &image, int x, int y) {
 
-	Color current = image.GetPixel(x, y);
-	Color other = image.GetPixel(x, y+1);
+	ImageColor current = image.GetPixel(x, y);
+	ImageColor other = image.GetPixel(x, y+1);
 
-	int currentColorCount = 0;
-	int otherColorCount = 0;
+	int currentImageColorCount = 0;
+	int otherImageColorCount = 0;
 
 	// go through the 8x8 square around the diagonals
 	for(int i = x-4; i < x+4; i++) {
@@ -413,23 +416,23 @@ void sparsePixelHeuristic(Graph &graph, const Image &image, int x, int y) {
 			// make sure not to walk off the grid
 			if(i < 0 || j < 0 || i >= graph.size() || j >= graph[i].size()) continue;
 
-			// compare the colors
-			Color pix = image.GetPixel(i, j);
+			// compare the ImageColors
+			ImageColor pix = image.GetPixel(i, j);
 
 			if(pix.r == current.r && pix.g == current.g && pix.b == current.b) {
-				currentColorCount++;
+				currentImageColorCount++;
 			}
 			else if(pix.r == other.r && pix.g == other.g && pix.b == other.b) {
-				otherColorCount++;
+				otherImageColorCount++;
 			}
 		}
 	}
-	// weigh the edge with the smaller color count
-	if(currentColorCount < otherColorCount) {
-		graph[x][y].setEdgeWeight(x+1, y+1, otherColorCount - currentColorCount);
+	// weigh the edge with the smaller ImageColor count
+	if(currentImageColorCount < otherImageColorCount) {
+		graph[x][y].setEdgeWeight(x+1, y+1, otherImageColorCount - currentImageColorCount);
 	}
 	else {
-		graph[x][y+1].setEdgeWeight(x+1, y, currentColorCount - otherColorCount);
+		graph[x][y+1].setEdgeWeight(x+1, y, currentImageColorCount - otherImageColorCount);
 	}
 }
 
@@ -655,8 +658,8 @@ void makeVoronoi(const Graph &graph, const Image &image, V_Graph &voronoi) {
 			// Left
 			shape.addPoint(xCenter-0.5, yCenter);
 
-			// add the color of the shape
-			shape.setColor(image.GetPixel(x,y));
+			// add the ImageColor of the shape
+			shape.setImageColor(image.GetPixel(x,y));
 
 			// store coordinates for debugging
 			shape.storeX(x);
@@ -999,8 +1002,8 @@ void printShapes(const std::vector<std::vector<VoronoiRegion> > &shapes) {
 
 	for(unsigned int i = 0; i < shapes.size(); i++) {
 		for(unsigned int j = 0; j < shapes[i].size(); j++) {
-			Color c = shapes[i][j].getColor();
-			std::cout << "Color: " << c.r << " " << c.g << " " << c.b << std::endl;
+			ImageColor c = shapes[i][j].getImageColor();
+			std::cout << "ImageColor: " << c.r << " " << c.g << " " << c.b << std::endl;
 			std::cout << shapes[i][j].getX() << " " << shapes[i][j].getY() << std::endl;
 		}
 
