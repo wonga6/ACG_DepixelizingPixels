@@ -6,13 +6,12 @@
 #include <list>
 #include <set>
 #include <utility>
-#include <cmath>
 
 #include "image.h"
 
 bool floatEquals(float a, float b){
   float EPSILON = 0.0001;
-  return abs(a - b) < EPSILON;
+  return a > b - EPSILON && a < b + EPSILON;
 }
 
 // class to store the edge in a Voronoi diagram
@@ -44,7 +43,7 @@ class VoronoiEdge {
 };
 
 bool operator==(const VoronoiEdge& a, const VoronoiEdge& b) {
-
+  
 	if(floatEquals(a.startPoint.first, b.startPoint.first) && 
 	   floatEquals(a.startPoint.second,b.startPoint.second) &&
 	   floatEquals(a.endPoint.first, b.endPoint.first) && 
@@ -83,12 +82,11 @@ class VoronoiRegion {
 
 		// returns true if point is in pts
 		bool hasPoint(float x, float y) {
-			float EPSILON = 0.0001;
 
 			for(std::list<std::pair<float, float> >::iterator itr = pts.begin();
 				itr != pts.end(); itr++) {
-				if((x > itr->first - EPSILON && x < itr->first + EPSILON) &&
-					y > itr->second - EPSILON && y < itr->second + EPSILON) {
+			  if(floatEquals(x, itr->first) &&
+			     floatEquals(y, itr->second)) {
 					return true;
 				}
 			}
@@ -98,12 +96,11 @@ class VoronoiRegion {
 
 		// removes point (x,y) from pts
 		void removePoint(float x, float y) {
-			float EPSILON = 0.0001;
 
 			for(std::list<std::pair<float, float> >::iterator itr = pts.begin();
 				itr != pts.end(); itr++) {
-				if((x > itr->first - EPSILON && x < itr->first + EPSILON) &&
-					y > itr->second - EPSILON && y < itr->second + EPSILON) {
+			  if(floatEquals(x, itr->first) &&
+			     floatEquals(y, itr->second)) {
 					pts.erase(itr);
 					break;
 				}
