@@ -1,0 +1,16 @@
+<?xml version="1.0" standalone="no" ?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100px" height="100px" xmlns="http://www.w3.org/2000/svg" version="1.1" >
+	<line x1="0" y1="75" x2="25" y2="100" stroke-width="2" stroke="rgb(0,0,0)" />
+	<line x1="0" y1="50" x2="0" y2="75" stroke-width="2" stroke="rgb(0,0,0)" />
+	<line x1="0" y1="50" x2="25" y2="25" stroke-width="2" stroke="rgb(0,0,0)" />
+	<line x1="25" y1="100" x2="50" y2="100" stroke-width="2" stroke="rgb(0,0,0)" />
+	<line x1="25" y1="75" x2="50" y2="75" stroke-width="2" stroke="rgb(0,0,0)" />
+	<line x1="25" y1="50" x2="25" y2="75" stroke-width="2" stroke="rgb(0,0,0)" />
+	<line x1="25" y1="50" x2="50" y2="50" stroke-width="2" stroke="rgb(0,0,0)" />
+	<line x1="25" y1="25" x2="50" y2="25" stroke-width="2" stroke="rgb(0,0,0)" />
+	<line x1="50" y1="100" x2="75" y2="75" stroke-width="2" stroke="rgb(0,0,0)" />
+	<line x1="50" y1="50" x2="50" y2="75" stroke-width="2" stroke="rgb(0,0,0)" />
+	<line x1="50" y1="25" x2="75" y2="50" stroke-width="2" stroke="rgb(0,0,0)" />
+	<line x1="75" y1="50" x2="75" y2="75" stroke-width="2" stroke="rgb(0,0,0)" />
+</svg>

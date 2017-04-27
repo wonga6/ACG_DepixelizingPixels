@@ -75,6 +75,7 @@ bool floatEquals(float a, float b);
 
 // ===========================================================================================
 // FUNCTIONS FOR VISUALIZING
+void visualizeSimilarityGraph(const Graph &similarity_graph, const Image &image);
 void visualizeVoronoi(const V_Graph &voronoi, const Image &image);
 void visualizeShapes(const std::vector<ShapePaths> &paths, const Image &image);
 
@@ -148,7 +149,7 @@ int main(int argc, char* argv[]) {
 	// remove the diagonals based on the aggregated weight
 	removeDiagonals(similarity_graph);
 	//printGraph(similarity_graph);
-
+	visualizeSimilarityGraph(similarity_graph, image);
 
 	// create Voronoi diagram
 	V_Graph voronoi;
@@ -156,7 +157,7 @@ int main(int argc, char* argv[]) {
 	//printVoronoi(voronoi);
 	//visualizeVoronoi(voronoi);
 
-	std::cout << std::endl << "Simplified Voronoi" << std::endl;
+	std::cout << "Simplified Voronoi" << std::endl;
 
 	simplifyVoronoi(voronoi);
 	//printVoronoi(voronoi);
@@ -364,7 +365,7 @@ void removeDiagonals2x2(Graph &graph) {
 
 	// remove diagonals from 2x2 squares of pixels that are fully connected
 	for(unsigned int x = 0; x < graph.size(); x++) {
-		for(unsigned int y = 0; y < graph.size(); y++) {
+		for(unsigned int y = 0; y < graph[x].size(); y++) {
 			Node current = graph[x][y];
 			int n = 0;
 			bool connected = false;
@@ -1052,6 +1053,44 @@ std::pair<float, float> cubicBSpline(const std::vector<std::pair<float, float> >
 // ===========================================================================================
 // VISUALIZE FUNCTIONS
 
+// visualize similarity graph
+void visualizeSimilarityGraph(const Graph &similarity_graph, const Image &image) {
+
+	std::cout << "make similarity.svg" << std::endl;
+
+	float heightWidth = 100;
+	Color strokeColor(0,0,0);
+
+	// make document
+	Dimensions dimensions(heightWidth, heightWidth);
+	Document doc("similarity.svg", Layout(dimensions, Layout::BottomLeft));
+
+	float scale = 10;
+	if(image.Width() > image.Height()) {
+		scale = heightWidth / image.Width();
+	}
+	else {
+		scale = heightWidth / image.Height();
+	}
+
+	for(unsigned int x = 0; x < similarity_graph.size(); x++) {
+		for(unsigned int y = 0; y < similarity_graph.size(); y++) {
+
+			// make a line for each edge of the graph
+			std::vector<Edge> nodeEdges = similarity_graph[x][y].getEdges();
+			for(unsigned int i = 0; i < nodeEdges.size(); i++) {
+				Point start(nodeEdges[i].getStart()->getXCoor() * scale, nodeEdges[i].getStart()->getYCoor() * scale);
+				Point end(nodeEdges[i].getEnd()->getXCoor() * scale, nodeEdges[i].getEnd()->getYCoor() * scale);
+				Line line(start, end, Stroke(2, strokeColor));
+				doc << line;
+			}
+
+		}
+	}
+
+	doc.save();
+}
+
 // visualize the regions in the voronoi diagram
 void visualizeVoronoi(const V_Graph &voronoi, const Image &image) {
 
@@ -1119,7 +1158,7 @@ void visualizeShapes(const std::vector<ShapePaths> &paths, const Image &image) {
 		Color regionColor(c.r, c.g, c.b);
 
 		std::vector<std::pair<float,float> > points = paths[x].getSubCurve(0);
-		Path path(regionColor, Stroke(1, regionColor));
+		Path path(regionColor, Stroke(1, black));
 
 		for(unsigned int i = 0; i < points.size(); i++) {
 			path << Point(points[i].first * scale, points[i].second * scale);

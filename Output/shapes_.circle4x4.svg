@@ -1,0 +1,10 @@
+<?xml version="1.0" standalone="no" ?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">
+<svg width="100px" height="100px" xmlns="http://www.w3.org/2000/svg" version="1.1" >
+	<path d="M0,100 12.5,100 25,100 18.75,81.25 0,75 0,87.5 z " fill-rule="evenodd" fill="rgb(0,103,255)" stroke-width="1" stroke="rgb(255,255,255)" />
+	<path d="M0,75 18.75,81.25 31.25,68.75 25,50 31.25,31.25 50,25 68.75,31.25 75,50 68.75,68.75 50,75 31.25,68.75 18.75,81.25 25,100 37.5,100 50,100 62.5,100 75,100 81.25,81.25 100,75 100,62.5 100,50 100,37.5 100,25 81.25,18.75 75,0 62.5,0 50,0 37.5,0 25,0 18.75,18.75 0,25 0,37.5 0,50 0,62.5 z " fill-rule="evenodd" fill="rgb(0,0,0)" stroke-width="1" stroke="rgb(255,255,255)" />
+	<path d="M0,25 18.75,18.75 25,0 12.5,0 0,0 0,12.5 z " fill-rule="evenodd" fill="rgb(0,103,255)" stroke-width="1" stroke="rgb(255,255,255)" />
+	<path d="M25,50 31.25,68.75 50,75 68.75,68.75 75,50 68.75,31.25 50,25 31.25,31.25 z " fill-rule="evenodd" fill="rgb(255,0,0)" stroke-width="1" stroke="rgb(255,255,255)" />
+	<path d="M75,100 87.5,100 100,100 100,87.5 100,75 81.25,81.25 z " fill-rule="evenodd" fill="rgb(0,103,255)" stroke-width="1" stroke="rgb(255,255,255)" />
+	<path d="M75,0 81.25,18.75 100,25 100,12.5 100,0 87.5,0 z " fill-rule="evenodd" fill="rgb(0,103,255)" stroke-width="1" stroke="rgb(255,255,255)" />
+</svg>
