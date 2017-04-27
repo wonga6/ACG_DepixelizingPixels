@@ -76,7 +76,12 @@ class VoronoiRegion {
 		const int getY() const { return y; }
 		const ImageColor& getImageColor() const { return c; }
 		const std::list<std::pair<float, float> >& getPts() const { return pts; }
-		const std::set<VoronoiEdge>& getEdges() { return edges; }
+		const std::set<VoronoiEdge>& getEdges() const { return edges; }
+		void getEdges(std::list<VoronoiEdge> &edgeGroup) const {
+			for(std::set<VoronoiEdge>::iterator itr = edges.begin(); itr != edges.end(); itr++) {
+				edgeGroup.push_back(*itr);
+			}
+		}
 
 		// OTHER FUNCTIONs
 
@@ -111,12 +116,12 @@ class VoronoiRegion {
 		void addEdges() {
 			std::list<std::pair<float, float> >::iterator itr = pts.begin();
 
-			std::cout << "All pts:" << std::endl;
-			for(; itr != pts.end(); itr++) {
-				std::cout << "(" << itr->first << "," << itr->second << ")" << std::endl;
-			}
+			// std::cout << "All pts:" << std::endl;
+			// for(; itr != pts.end(); itr++) {
+			// 	std::cout << "(" << itr->first << "," << itr->second << ")" << std::endl;
+			// }
 			
-			std::cout << "----------------------" << std::endl;
+			// std::cout << "----------------------" << std::endl;
 			itr = pts.begin();
 			// add the edges between the points
 			while(itr != pts.end()) {
@@ -129,14 +134,14 @@ class VoronoiRegion {
 
 				VoronoiEdge tmp(start, end);
 				std::pair<std::set<VoronoiEdge>::iterator, bool> result = edges.insert(tmp);
-				std::cout << "("<< start.first << " " << start.second << ")  "  << "(" << end.first << " " << end.second <<") " << result.second << std::endl;
+				//std::cout << "("<< start.first << " " << start.second << ")  "  << "(" << end.first << " " << end.second <<") " << result.second << std::endl;
 			}
 
 			// connect the last point in the list and the first point
 			VoronoiEdge connect(pts.back(), pts.front());
 			edges.insert(connect);
 
-			std::cout << std::endl;
+			//std::cout << std::endl;
 		}
 
 		// erase an edge from the set

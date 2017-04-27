@@ -59,13 +59,24 @@ void inShape(const VoronoiRegion &vr, const VoronoiRegion &connected,
 	std::vector<std::vector<VoronoiRegion> > &shapes);
 void removeSimilar(std::vector<std::vector<VoronoiRegion> > &shapes);
 
+// ===========================================================================================
+// FUNCTIONS FOR 
+void collectEdges(std::vector<ShapePaths> &paths, const std::vector<std::vector<VoronoiRegion> > &shapes);
+void combineSame(std::vector<ShapePaths> &paths);
+
+// ===========================================================================================
 // functions for B-splines
 void makeBSplines(std::vector<Spline> &bsplines, const V_Graph &voronoi);
 std::pair<float, float> cubicBSpline(const std::vector<std::pair<float, float> > &points, float t);
 
 // ===========================================================================================
+// FLOAT EQUALS
+bool floatEquals(float a, float b);
+
+// ===========================================================================================
 // FUNCTIONS FOR VISUALIZING
-void visualizeVoronoi(const V_Graph &voronoi);
+void visualizeVoronoi(const V_Graph &voronoi, const Image &image);
+void visualizeShapes(const std::vector<ShapePaths> &paths, const Image &image);
 
 // ===========================================================================================
 // FUNCTIONS FOR DEBUGGING
@@ -75,19 +86,19 @@ void printVoronoi(const V_Graph &voronoi);
 void printVoronoiEdges(const V_Graph &voronoi);
 void printShapes(const std::vector<std::vector<VoronoiRegion> > &shapes);
 void printShapeEdges(const std::vector<std::vector<VoronoiRegion> > &shapes);
+void printCollectedEdges(const std::vector<ShapePaths> &paths);
 
 // ===========================================================================================
 int main(int argc, char* argv[]) {
 
 	// command line args: input, output file names
-	if(argc != 3) {
+	if(argc != 2) {
 		std::cerr << "Wrong number of command line args:"
-			  << " need input and output file name" << std::endl;
+			  << " need input file name" << std::endl;
 		exit(0);
 	}
 	
 	std::string inputFile = argv[1];
-	std::string outputFile = argv[2];
 
 	// load the image
 	Image image;
@@ -143,11 +154,13 @@ int main(int argc, char* argv[]) {
 	V_Graph voronoi;
 	makeVoronoi(similarity_graph, image, voronoi);
 	//printVoronoi(voronoi);
+	//visualizeVoronoi(voronoi);
 
 	std::cout << std::endl << "Simplified Voronoi" << std::endl;
 
 	simplifyVoronoi(voronoi);
 	//printVoronoi(voronoi);
+	visualizeVoronoi(voronoi, image);
 
 	std::cout << "Voronoi Edges" << std::endl;
 	addEdgesVoronoi(voronoi);
@@ -160,8 +173,17 @@ int main(int argc, char* argv[]) {
 
 	std::cout << "Remove Similar" << std::endl;
 	removeSimilar(shapes);
-	printShapeEdges(shapes);
+	//printShapeEdges(shapes);
 
+	std::cout << "Collect Edges" << std::endl;
+	std::vector<ShapePaths> paths;
+	collectEdges(paths, shapes);
+	//printCollectedEdges(paths);
+
+	std::cout << "Combine curves" << std::endl;
+	combineSame(paths);
+	//printCollectedEdges(paths);
+	visualizeShapes(paths, image);
 
 	return 0;
 }
@@ -904,6 +926,79 @@ void removeSimilar(std::vector<std::vector<VoronoiRegion> > &shapes) {
 
 }
 
+void collectEdges(std::vector<ShapePaths> &paths, const std::vector<std::vector<VoronoiRegion> > &shapes) {
+
+	std::vector<std::list<VoronoiEdge> > edges;
+	// collect just the edges of each voronoi region group
+	for(unsigned int i = 0; i < shapes.size(); i++) {
+		
+		std::list<VoronoiEdge> edgeGroup;
+		for(unsigned int j = 0; j < shapes[i].size(); j++) {
+			shapes[i][j].getEdges(edgeGroup);
+		}	
+		edges.push_back(edgeGroup);
+	}
+
+	// for each group of voronoi regions
+	for(unsigned int i = 0; i < edges.size(); i++) {
+
+		ShapePaths p(shapes[i][0].getImageColor());
+
+		while(!edges[i].empty()) {
+			std::vector<std::pair<float, float> > subcurve;
+
+			std::list<VoronoiEdge>::iterator itr = edges[i].begin();
+			std::list<VoronoiEdge>::iterator tmp = itr;
+			std::pair<float, float> startPoint = itr->startPoint;
+			std::pair<float, float> endPoint = itr->endPoint;
+
+			std::pair<float, float> originalPoint = startPoint;
+			subcurve.push_back(originalPoint);
+
+			tmp++;
+			edges[i].erase(itr);
+			itr = tmp;
+
+			// while not back at the original point
+			while(!floatEquals(originalPoint.first, endPoint.first) ||
+				(!floatEquals(originalPoint.second, endPoint.second))) {
+
+				if(itr == edges[i].end()) {
+					itr = edges[i].begin();
+				}
+				else {
+					itr++;
+				}
+
+				startPoint = itr->startPoint;
+				
+				if(floatEquals(startPoint.first, endPoint.first) && floatEquals(startPoint.second, endPoint.second)) {
+					subcurve.push_back(startPoint);
+
+					endPoint = itr->endPoint;
+
+					// remove the edge from the list
+					tmp = itr;
+					tmp++;
+					edges[i].erase(itr);
+					itr = tmp;
+				}
+			}
+			p.addSubCurve(subcurve);
+		}
+
+		paths.push_back(p);
+	}
+
+
+}
+
+// combine the subcurves of each ShapePath into one cure
+void combineSame(std::vector<ShapePaths> &paths) {
+	for(unsigned int i = 0; i < paths.size(); i++) {
+		paths[i].combineCurves();
+	}
+}
 
 // ===========================================================================================
 void makeBSplines(std::vector<Spline> &bsplines, const V_Graph &voronoi) {
@@ -955,26 +1050,85 @@ std::pair<float, float> cubicBSpline(const std::vector<std::pair<float, float> >
 }
 
 // ===========================================================================================
-// DEBUGGING FUNCTIONS
+// VISUALIZE FUNCTIONS
 
 // visualize the regions in the voronoi diagram
-void visualizeVoronoi(const V_Graph &voronoi) {
+void visualizeVoronoi(const V_Graph &voronoi, const Image &image) {
+
+	std::cout << "make voronoi.svg" << std::endl;
+
+	float heightWidth = 100;
 
 	// create teh document
-	Dimensions dimensions(100, 100);
+	Dimensions dimensions(heightWidth, heightWidth);
     Document doc("voronoi.svg", Layout(dimensions, Layout::BottomLeft));
 
+    // put Voronoi shapes on document
  	for(unsigned int x = 0; x < voronoi.size(); x++) {
- 		for(unsigned int y = 0; y < voronoi[x].size() y++) {
+ 		for(unsigned int y = 0; y < voronoi[x].size(); y++) {
  			ImageColor c = voronoi[x][y].getImageColor();
  			Color regionColor(c.r, c.g, c.b);
 
  			std::list<std::pair<float, float> > regionPoints = voronoi[x][y].getPts();
+ 			Path path(regionColor, Stroke(.5, regionColor));
 
+ 			float scale = 10;
 
+ 			if(image.Width() > image.Height()) {
+ 				scale = heightWidth / image.Width();
+ 			}
+ 			else {
+ 				scale = heightWidth / image.Height();
+ 			}
+
+ 			for(std::list<std::pair<float, float> >::iterator itr = regionPoints.begin(); 
+ 				itr != regionPoints.end(); itr++) {
+ 				path << Point(itr->first * scale, itr->second * scale);
+ 			}
+
+ 			doc << path;
  		}
  	}
 
+ 	doc.save();
+
+}
+
+void visualizeShapes(const std::vector<ShapePaths> &paths, const Image &image) {
+
+	std::cout << "make shapes.svg" << std::endl;
+
+	float heightWidth = 100;
+	Color black(255,255,255);
+
+	// make document
+	Dimensions dimensions(heightWidth, heightWidth);
+	Document doc("shapes.svg", Layout(dimensions, Layout::BottomLeft));
+
+	float scale = 10;
+	if(image.Width() > image.Height()) {
+		scale = heightWidth / image.Width();
+	}
+	else {
+		scale = heightWidth / image.Height();
+	}
+
+	// put shapes on document
+	for(unsigned int x = 0; x < paths.size(); x++) {
+		ImageColor c = paths[x].getImageColor();
+		Color regionColor(c.r, c.g, c.b);
+
+		std::vector<std::pair<float,float> > points = paths[x].getSubCurve(0);
+		Path path(regionColor, Stroke(1, regionColor));
+
+		for(unsigned int i = 0; i < points.size(); i++) {
+			path << Point(points[i].first * scale, points[i].second * scale);
+		}
+
+		doc << path;
+	}
+
+	doc.save();
 }
 
 // ===========================================================================================
@@ -1054,4 +1208,23 @@ void printShapeEdges(const std::vector<std::vector<VoronoiRegion> > &shapes) {
 	}
 
 	std::cout << "==========================" << std::endl;
+}
+
+// print the groups of collected edges
+void printCollectedEdges(const std::vector<ShapePaths> &paths) {
+
+	for(unsigned int i = 0; i < paths.size(); i++) {
+		std::cout << "Path: " << i << std::endl;
+
+		for(int j = 0; j < paths[i].numSubCurves(); j++) {
+			std::cout << "Subcurve: " << std::endl;
+			std::vector<std::pair<float, float> > subcurve = paths[i].getSubCurve(j);
+			for(unsigned int p = 0; p < subcurve.size(); p++) {
+				std::cout << "( " << subcurve[p].first << " , " << subcurve[p].second << " )" << std::endl;
+			}
+
+		}
+		std::cout << std::endl;
+	}
+
 }
