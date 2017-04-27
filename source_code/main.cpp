@@ -64,6 +64,10 @@ void makeBSplines(std::vector<Spline> &bsplines, const V_Graph &voronoi);
 std::pair<float, float> cubicBSpline(const std::vector<std::pair<float, float> > &points, float t);
 
 // ===========================================================================================
+// FUNCTIONS FOR VISUALIZING
+void visualizeVoronoi(const V_Graph &voronoi);
+
+// ===========================================================================================
 // FUNCTIONS FOR DEBUGGING
 
 void printGraph(const Graph &graph); 
@@ -948,6 +952,29 @@ std::pair<float, float> cubicBSpline(const std::vector<std::pair<float, float> >
 
 	std::pair<float, float> bSplinePoint = std::make_pair(x, y);
 	return bSplinePoint;
+}
+
+// ===========================================================================================
+// DEBUGGING FUNCTIONS
+
+// visualize the regions in the voronoi diagram
+void visualizeVoronoi(const V_Graph &voronoi) {
+
+	// create teh document
+	Dimensions dimensions(100, 100);
+    Document doc("voronoi.svg", Layout(dimensions, Layout::BottomLeft));
+
+ 	for(unsigned int x = 0; x < voronoi.size(); x++) {
+ 		for(unsigned int y = 0; y < voronoi[x].size() y++) {
+ 			ImageColor c = voronoi[x][y].getImageColor();
+ 			Color regionColor(c.r, c.g, c.b);
+
+ 			std::list<std::pair<float, float> > regionPoints = voronoi[x][y].getPts();
+
+
+ 		}
+ 	}
+
 }
 
 // ===========================================================================================
