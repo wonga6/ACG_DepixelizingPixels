@@ -4,6 +4,7 @@
 #include <vector>
 #include <list>
 #include <list>
+#include <cmath>
 #include <utility>
 
 #include "node.h"
@@ -52,6 +53,8 @@ void simplifyVoronoi(V_Graph &voronoi);
 bool isBoundary(float x, float y, int boundX, int boundY);
 void addEdgesVoronoi(V_Graph &voronoi);
 
+// ===========================================================================================
+
 // functions to create shapes
 void createShapes(std::vector<std::vector<VoronoiRegion> > &shapes, const Graph &similarity_graph,
 	const V_Graph &voronoi);
@@ -59,8 +62,7 @@ void inShape(const VoronoiRegion &vr, const VoronoiRegion &connected,
 	std::vector<std::vector<VoronoiRegion> > &shapes);
 void removeSimilar(std::vector<std::vector<VoronoiRegion> > &shapes);
 
-// ===========================================================================================
-// FUNCTIONS FOR 
+
 void collectEdges(std::vector<ShapePaths> &paths, const std::vector<std::vector<VoronoiRegion> > &shapes);
 void combineSame(std::vector<ShapePaths> &paths);
 
@@ -75,7 +77,7 @@ bool floatEquals(float a, float b);
 
 // ===========================================================================================
 // FUNCTIONS FOR VISUALIZING
-void visualizeSimilarityGraph(const Graph &similarity_graph, const Image &image);
+void visualizeSimilarityGraph(const Graph &similarity_graph, const Image &image, const std::string &filename);
 void visualizeVoronoi(const V_Graph &voronoi, const Image &image);
 void visualizeShapes(const std::vector<ShapePaths> &paths, const Image &image);
 
@@ -115,9 +117,11 @@ int main(int argc, char* argv[]) {
 	// start of algorithm
 	disconnectDissimilar(similarity_graph, image);
 	//printGraph(similarity_graph);
+	//visualizeSimilarityGraph(similarity_graph, image);
 
 	removeDiagonals2x2(similarity_graph);
 	//printGraph(similarity_graph);
+	visualizeSimilarityGraph(similarity_graph, image, "similarity.svg");
 
 	// go through the graph and run the 3 heuristics on the cross diagonals
 	for(unsigned int x = 0; x < similarity_graph.size(); x++) {
@@ -149,7 +153,7 @@ int main(int argc, char* argv[]) {
 	// remove the diagonals based on the aggregated weight
 	removeDiagonals(similarity_graph);
 	//printGraph(similarity_graph);
-	visualizeSimilarityGraph(similarity_graph, image);
+	visualizeSimilarityGraph(similarity_graph, image, "similarity_after_heuristics.svg");
 
 	// create Voronoi diagram
 	V_Graph voronoi;
@@ -253,7 +257,6 @@ void disconnectDissimilar(Graph& similarity_graph, const Image &image) {
 				
 				// if ImageColors aren't similar
 				if(!compareYUV(current, north)) {
-					//std::cout << "similar" << std::endl;
 					// get the edge
 					std::vector<Edge>::iterator itr = similarity_graph[x][y].getEdge(x, y-1);
 					if(itr != similarity_graph[x][y].getEdges().end()) {
@@ -269,7 +272,6 @@ void disconnectDissimilar(Graph& similarity_graph, const Image &image) {
 				
 				// if ImageColors aren't similar
 				if(!compareYUV(current, northEast)) {
-					//std::cout << "similar" << std::endl;
 					// get the edge
 					std::vector<Edge>::iterator itr = similarity_graph[x][y].getEdge(x+1, y-1);
 					if(itr != similarity_graph[x][y].getEdges().end()) {
@@ -285,7 +287,6 @@ void disconnectDissimilar(Graph& similarity_graph, const Image &image) {
 				
 				// if ImageColors aren't similar
 				if(!compareYUV(current, east)) {
-					//std::cout << "similar" << std::endl;
 					// get the edge
 					std::vector<Edge>::iterator itr = similarity_graph[x][y].getEdge(x+1, y);
 					if(itr != similarity_graph[x][y].getEdges().end()) {
@@ -301,7 +302,6 @@ void disconnectDissimilar(Graph& similarity_graph, const Image &image) {
 				
 				// if ImageColors aren't similar
 				if(!compareYUV(current, southEast)) {
-					//std::cout << "similar" << std::endl;
 					// get the edge
 					std::vector<Edge>::iterator itr = similarity_graph[x][y].getEdge(x+1, y+1);
 					if(itr != similarity_graph[x][y].getEdges().end()) {
@@ -338,9 +338,9 @@ bool compareYUV(const ImageColor &current, const ImageColor &connected) {
 	calcYUV(current, currY, currU, currV);
 	calcYUV(connected, connY, connU, connV);
 
-	float diffY = connY - currY;
-	float diffU = connU - currU;
-	float diffV = connV - currV;
+	float diffY = std::fabs(connY - currY);
+	float diffU = std::fabs(connU - currU);
+	float diffV = std::fabs(connV - currV);
 
 	if(diffY > (48.0f / 255) || diffU > (7.0f / 255) || 
 		diffV > (6.0f) / 255) {
@@ -354,13 +354,6 @@ bool compareYUV(const ImageColor &current, const ImageColor &connected) {
 // ===========================================================================================
 
 // remove diagonals between 2x2 square of pixels that is fully connected
-
-/*  A fully connected 2x2 block will have the following Node structure
-		 N----NE
-		 | \ / |
-		 | / \ |
-	    Node---E
-*/
 void removeDiagonals2x2(Graph &graph) {
 
 	// remove diagonals from 2x2 squares of pixels that are fully connected
@@ -409,22 +402,118 @@ void removeDiagonals2x2(Graph &graph) {
 // check the endpoints of the node's diagonals
 // if endpoint has only one edge it's an island
 void islandsHeuristic(Graph &graph, int x, int y) {
-	
-	// check for diagonal going North-east
-	if(x+1 < graph.size() && y-1 >= 0) {
-		Node northEast = graph[x+1][y-1];
-		if(northEast.getEdges().size() == 1) {
-			graph[x][y].setEdgeWeight(x+1, y-1, 5);
+
+	bool diag1_startNodeIsland = false;
+	bool diag2_startNodeIsland = false;
+
+	// test if the start nodes of the edges are islands
+	if(graph[x][y].getEdges().size() == 1) {
+		int incomingEdgeCount = 0;
+
+		// incoming edge from north west
+		if(x > 0 && y > 0) {
+			if(graph[x-1][y-1].hasEdge(x, y)) {
+				incomingEdgeCount++;
+			}
+		}
+
+		// incoming edge from west
+		if(x > 0) {
+			if(graph[x-1][y].hasEdge(x, y)) {
+				incomingEdgeCount++;
+			}
+		}
+
+		// incoming edge from south west
+		if(x-1 >= 0 && y+1 < graph[x-1].size()) {
+			if(graph[x-1][y+1].hasEdge(x, y)) {
+				incomingEdgeCount++;
+			}
+		}
+
+		// incoming edge from south
+		if(y+1 < graph[x].size()) {
+			if(graph[x][y+1].hasEdge(x, y)) {
+				incomingEdgeCount++;
+			}
+		}
+
+		if(incomingEdgeCount == 0) {
+			graph[x][y].setEdgeWeight(x+1, y+1, 5);
+			diag1_startNodeIsland = true;
 		}
 	}
 
-	// check the diagonal going South-east
-	if(x+1 < graph.size() && y+1 < graph[x].size()) {
-		Node southEast = graph[x+1][y+1];
-		if(southEast.getEdges().size() == 1) {
-			graph[x][y].setEdgeWeight(x+1, y+1, 5);
+	if(y+1 < graph[x].size() && graph[x][y+1].getEdges().size() == 1) {
+		int incomingEdgeCount = 0;
+
+		// incoming edge from north west and west
+		if(x > 0) {
+			if(graph[x-1][y].hasEdge(x, y+1)) {
+				incomingEdgeCount++;
+			}
+
+			if(graph[x-1][y+1].hasEdge(x, y+1)) {
+				incomingEdgeCount++;
+			}
+		}
+
+		// incoming edge from south west
+		if(x-1 >= 0 && y+2 < graph[x-1].size()) {
+			if(graph[x-1][y+2].hasEdge(x, y+1)) {
+				incomingEdgeCount++;
+			}
+		}
+
+		// incoming edge from south
+		if(y+2 < graph[x].size()) {
+			if(graph[x][y+2].hasEdge(x, y+1)) {
+				incomingEdgeCount++;
+			}
+		}
+
+		if(incomingEdgeCount == 0) {
+			graph[x][y+1].setEdgeWeight(x+1, y, 5);
+			diag2_startNodeIsland = true;
 		}
 	}
+
+
+	// test if the end nodes of the edges are islands
+	if(x+1 < graph.size() && y+1 < graph[x].size()) {
+		if(!diag1_startNodeIsland) {
+			// test if the end node (in the south-east) is an island
+			Node southEast = graph[x+1][y+1];
+			if(southEast.getEdges().size() == 0 && !(graph[x][y+1].hasEdge(x+1, y+1))) {
+				if(y+2 < graph[x].size()) {
+					if(!(graph[x][y+2].hasEdge(x+1, y+1)) && !(graph[x+1][y+2].hasEdge(x+1, y+1))) {
+						graph[x][y].setEdgeWeight(x+1, y+1, 5);
+					}
+				}
+				else {
+					// if at edge of graph
+					graph[x][y].setEdgeWeight(x+1, y+1, 5);
+				}
+			}
+		}
+	
+		if(!diag2_startNodeIsland) {
+			// test if the end node (in the east) is an island 
+			Node east = graph[x+1][y];
+			if(east.getEdges().size() == 0 && !(graph[x][y].hasEdge(x+1, y)) && !(graph[x+1][y+1].hasEdge(x+1, y))) {
+				if(y > 0) {
+					if(!(graph[x][y-1].hasEdge(x+1, y))) {
+						graph[x][y+1].setEdgeWeight(x+1, y, 5);
+					}
+				}
+				else {
+					// if at edge of graph
+					graph[x][y+1].setEdgeWeight(x+1, y, 5);
+				}
+			}
+		}
+	}
+
 }
 
 // weight of the edge is the difference in the number of nodes with the same ImageColor in the 
@@ -454,11 +543,14 @@ void sparsePixelHeuristic(Graph &graph, const Image &image, int x, int y) {
 			}
 		}
 	}
+
 	// weigh the edge with the smaller ImageColor count
 	if(currentImageColorCount < otherImageColorCount) {
 		graph[x][y].setEdgeWeight(x+1, y+1, otherImageColorCount - currentImageColorCount);
+		graph[x][y+1].setEdgeWeight(x+1, y, otherImageColorCount - currentImageColorCount);
 	}
 	else {
+		graph[x][y].setEdgeWeight(x+1, y+1, currentImageColorCount - otherImageColorCount);
 		graph[x][y+1].setEdgeWeight(x+1, y, currentImageColorCount - otherImageColorCount);
 	}
 }
@@ -1054,16 +1146,17 @@ std::pair<float, float> cubicBSpline(const std::vector<std::pair<float, float> >
 // VISUALIZE FUNCTIONS
 
 // visualize similarity graph
-void visualizeSimilarityGraph(const Graph &similarity_graph, const Image &image) {
+void visualizeSimilarityGraph(const Graph &similarity_graph, const Image &image, const std::string &filename) {
 
-	std::cout << "make similarity.svg" << std::endl;
+	std::cout << "make " << filename << std::endl;
 
 	float heightWidth = 100;
 	Color strokeColor(0,0,0);
+	Color red(255, 0, 0);
 
 	// make document
 	Dimensions dimensions(heightWidth, heightWidth);
-	Document doc("similarity.svg", Layout(dimensions, Layout::BottomLeft));
+	Document doc(filename, Layout(dimensions, Layout::BottomLeft));
 
 	float scale = 10;
 	if(image.Width() > image.Height()) {
@@ -1074,14 +1167,15 @@ void visualizeSimilarityGraph(const Graph &similarity_graph, const Image &image)
 	}
 
 	for(unsigned int x = 0; x < similarity_graph.size(); x++) {
-		for(unsigned int y = 0; y < similarity_graph.size(); y++) {
+		for(unsigned int y = 0; y < similarity_graph[x].size(); y++) {
 
 			// make a line for each edge of the graph
 			std::vector<Edge> nodeEdges = similarity_graph[x][y].getEdges();
 			for(unsigned int i = 0; i < nodeEdges.size(); i++) {
 				Point start(nodeEdges[i].getStart()->getXCoor() * scale, nodeEdges[i].getStart()->getYCoor() * scale);
 				Point end(nodeEdges[i].getEnd()->getXCoor() * scale, nodeEdges[i].getEnd()->getYCoor() * scale);
-				Line line(start, end, Stroke(2, strokeColor));
+
+				Line line(start, end, Stroke(1, strokeColor));
 				doc << line;
 			}
 
@@ -1179,7 +1273,7 @@ void printGraph(const Graph &graph) {
 	std::cout << "Graph size: " << graph.size() << std::endl;
 
 	for(unsigned int x = 0; x < graph.size(); x++) {
-		for(unsigned int y = 0; y < graph.size(); y++) {
+		for(unsigned int y = 0; y < graph[x].size(); y++) {
 			std::cout << x << " " << y << std::endl;
 
 			std::vector<Edge> edges = graph[x][y].getEdges();
