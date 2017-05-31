@@ -8,9 +8,11 @@ Notes:
 - not a complete implementation of the paper - last section worked on in paper was 3.3
     - shapes aren't combined or smoothed out
 
+
 To run:
 g++ -g main.cpp image.cpp edge.cpp node.cpp -o test.out -Wall -std=c++11
 ./test.out ../TestImages/Image.ppm
+
 
 References:
 [1] 2015. Color Conversion. Equasys. Web, http://www.equasys.de/colorconversion.html
