@@ -16,7 +16,9 @@ g++ -g main.cpp image.cpp edge.cpp node.cpp -o test.out -Wall -std=c++11
 ./test.out ../TestImages/Image.ppm
 
 
+
 References:
+
 [1] 2015. Color Conversion. Equasys. Web, http://www.equasys.de/colorconversion.html  
 [2] Cutler, B/ 2015. Homework 9. Cs.rpi.edu. Web.  
 [3] Kopf, J. & Lischinski, D., 2011. Depixeling Pixel Art. ACM Transactions on Graphics (Procedings of SIGGRAPH 2011),30, 4, 99:1 - 99:8.  
